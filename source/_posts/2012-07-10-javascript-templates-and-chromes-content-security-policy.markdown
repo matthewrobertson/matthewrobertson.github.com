@@ -34,7 +34,7 @@ If you have a setup like mine, your templates are all in `<script type="text/tem
 
 ### 3. Convert your templates to handlebarsjs tempates
 
-If you weren't already using handlebarsjs, you will need to convert your templates to use the handlebarjs format. This will require varying amounts of effort depending on the template library you were using previously. I was using [Underscore's microtemplates](http://underscorejs.org/#template), but I kept the logic in my templates very thin. A global find and replace that swapped `<%=` and `%>` for `{ {` and `}}` and took care of 90% of the conversion. A good overview of how handlebarsjs works is available on [their site](http://handlebarsjs.com/)
+If you weren't already using handlebarsjs, you will need to convert your templates to use the handlebarjs format. This will require varying amounts of effort depending on the template library you were using previously. I was using [Underscore's microtemplates](http://underscorejs.org/#template), but I kept the logic in my templates very thin. A global find and replace that swapped `<%=` and `%>` for `{ {` and `}}` took care of 90% of the conversion. A good overview of how handlebarsjs works is available on [their site](http://handlebarsjs.com/)
 
 ### 4. Compile your templates
 
