@@ -3,7 +3,7 @@ layout: post
 title: "Javascript Templates and Chrome's Content Security Policy"
 date: 2012-07-10 23:34
 comments: true
-categories:
+categories: [Chrome Extensions, Javascript, Backbonejs]
 ---
 
 Lately, I have been spending a lot of time working on an open source EPUB3 viewer called [Readium](https://github.com/readium/readium). The project is built entirely with HTML5 / javascript and distributed as a chrome extension. A while ago while testing in [Chrome Canary](https://tools.google.com/dlpage/chromesxs/) I noticed a warning that support for manifest version 1 is being phased out in favour of version 2. At first glance, this upgrade required only a couple very minor modifications to my `manifest.json` (a list of all changes in v2 is available [here](http://code.google.com/chrome/extensions/manifestVersion.html)). But, these things are never easy, and sure enough when I tried to use the extension with the updated `manifest.json` everything was busted. I opened the developer console and found the following error message:
