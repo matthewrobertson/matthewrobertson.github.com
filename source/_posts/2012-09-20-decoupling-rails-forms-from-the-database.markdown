@@ -106,7 +106,7 @@ end
 
 By adding a thin layer of indirection, this pattern reduces the coupling between the view layer and database. There are a few other big wins that come with it as well:
 
-- the form markup is now as simple as it would be for only one model with no associations
+- the form markup is now as simple as it would be for one model with no associations
 - we can move business logic out of the `ActiveRecord` classes and allow them to focus on their persistence responsibility (e.g. hash and salt the password before passing assigning it to `User`)
 - we can add a different set of validations at the profile level (e.g. that are only pertinent to new users for example the confirmation of password)
 
