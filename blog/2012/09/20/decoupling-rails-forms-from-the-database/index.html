@@ -1,0 +1,360 @@
+
+<!DOCTYPE HTML>
+<html>
+<head>
+	<meta charset="utf-8">
+	<title>How To Stop Using Nested Forms - Matthew Robertson</title>
+	<meta name="author" content="Matthew Robertson">
+
+	
+	<meta name="description" content="One issue that caused me a lot of pain on my first few rails projects was the natural coupling that developed between the database and the rest of my &hellip;">
+	
+
+  <!-- http://t.co/dKP3o1e -->
+  <meta name="HandheldFriendly" content="True">
+  <meta name="MobileOptimized" content="320">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+
+	<link href="/atom.xml" rel="alternate" title="Matthew Robertson" type="application/atom+xml">
+	
+	<link rel="canonical" href="http://matthewrobertson.org/blog/2012/09/20/decoupling-rails-forms-from-the-database/">
+	<link href="/favicon.png" rel="shortcut icon">
+	<link href="/stylesheets/screen.css" media="screen, projection" rel="stylesheet" type="text/css">
+	<!--[if lt IE 9]><script src="//html5shiv.googlecode.com/svn/trunk/html5.js"></script><![endif]-->
+	<script src="//ajax.googleapis.com/ajax/libs/jquery/1.7.2/jquery.min.js"></script>
+	<link href='http://fonts.googleapis.com/css?family=Open+Sans:400italic,400,700' rel='stylesheet' type='text/css'>
+	
+	
+	<script type="text/javascript">
+		var _gaq = _gaq || [];
+		_gaq.push(['_setAccount', 'UA-29214705-1']);
+		_gaq.push(['_trackPageview']);
+
+		(function() {
+			var ga = document.createElement('script'); ga.type = 'text/javascript'; ga.async = true;
+			ga.src = ('https:' == document.location.protocol ? 'https://ssl' : 'http://www') + '.google-analytics.com/ga.js';
+			var s = document.getElementsByTagName('script')[0]; s.parentNode.insertBefore(ga, s);
+		})();
+	</script>
+
+
+</head>
+
+<body>
+	<div class="container">
+		<div class="left-col">
+			<div class="intrude-less">
+			<header id="header" class="inner"><div class="profilepic">	
+	<img src="/images/dp.jpg" alt="Profile Picture" style="width: 160px;">
+</div>
+<h1><a href="/">Matthew Robertson</a></h1>
+<p class="subtitle">Hi, I'm a software developer from Vancouver, BC. In my free time I like snowboarding, playing hockey and drinking coffee.</p>
+<nav id="main-nav"><ul class="main">
+	<li><a href="/">Blog</a></li>
+	<li><a href="/blog/archives">Archives</a></li>
+</ul>
+</nav>
+<nav id="sub-nav">
+	<div class="social">
+		
+		
+		
+		<a class="twitter" href="http://twitter.com/mattdrobertson" title="Twitter">Twitter</a>
+		
+		
+		<a class="github" href="https://github.com/matthewrobertson" title="GitHub">GitHub</a>
+		
+		
+		
+		
+		
+		
+		<a class="rss" href="/atom.xml" title="RSS">RSS</a>
+		
+	</div>
+</nav>
+
+</header>				
+			</div>
+		</div>	
+		<div class="mid-col">
+			
+				
+<div id="banner" class="inner">
+	<div class="container">
+		<ul class="feed"></ul>
+	</div>
+	<small><a href="http://twitter.com/mattdrobertson">mattdrobertson</a> @ <a href="http://twitter.com">Twitter</a></small>
+	<div class="loading">Loading...</div>
+</div>
+<script src="/javascripts/twitter.js"></script>
+<script type="text/javascript">
+	(function($){
+		$('#banner').getTwitterFeed('mattdrobertson', 4, false);
+	})(jQuery);
+</script>
+
+			
+			<div class="mid-col-container">
+				<div id="content" class="inner"><article class="post">
+	<h1 class="title">How to Stop Using Nested Forms</h1>
+	<div class="entry-content"><p>One issue that caused me a lot of pain on my first few rails projects was the natural coupling that developed between the database and the rest of my application. The “skinny controller, fat model” mantra has been the prevalent in the Rails community since the early days. The problem with this philosophy is that it is only 50% accurate. If you are building good object oriented software, you shouldn’t have a fat anything.<!-- more --> When all of your business logic is encased in ActiveRecord objects, there can be some unfortunate consequences: things become difficult to reason about, it is hard to test objects in isolation and changing the database schema is a painful process that demands updates to many parts of the application.</p>
+
+<p>In my opinion, one of worst offending features of rails is the ability to build nested model forms with <code>fields_for</code> and <code>accepts_nested_attributes_for</code>, as doing so directly couples your view layer to your database schema. Lately, I have been using a very simple technique to prevent this problem that I call building aggregate models.</p>
+
+<h2>An Example</h2>
+
+<p>Consider as an example, an application in which the <code>User</code> model <code>has_one</code> associated <code>Email</code>:</p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+<span class='line-number'>7</span>
+<span class='line-number'>8</span>
+<span class='line-number'>9</span>
+<span class='line-number'>10</span>
+<span class='line-number'>11</span>
+<span class='line-number'>12</span>
+<span class='line-number'>13</span>
+<span class='line-number'>14</span>
+</pre></td><td class='code'><pre><code class='ruby'><span class='line'><span class="k">class</span> <span class="nc">User</span> <span class="o">&lt;</span> <span class="no">ActiveRecord</span><span class="o">::</span><span class="no">Base</span>
+</span><span class='line'>  <span class="n">attr_accessible</span> <span class="ss">:name</span><span class="p">,</span> <span class="ss">:password</span><span class="p">,</span> <span class="ss">:password_confirmation</span>
+</span><span class='line'>  <span class="n">has_one</span> <span class="ss">:email</span>
+</span><span class='line'>  <span class="n">accepts_nested_attributes_for</span> <span class="ss">:email</span>
+</span><span class='line'>
+</span><span class='line'>  <span class="c1"># validations etc...</span>
+</span><span class='line'><span class="k">end</span>
+</span><span class='line'>
+</span><span class='line'><span class="k">class</span> <span class="nc">Email</span> <span class="o">&lt;</span> <span class="no">ActiveRecord</span><span class="o">::</span><span class="no">Base</span>
+</span><span class='line'>  <span class="n">attr_accessible</span> <span class="ss">:address</span><span class="p">,</span> <span class="ss">:confirmed</span>
+</span><span class='line'>  <span class="n">belongs_to</span> <span class="ss">:user</span>
+</span><span class='line'>
+</span><span class='line'>  <span class="c1"># validations etc...</span>
+</span><span class='line'><span class="k">end</span>
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p>The rails way to handle this association is to build a nested model form via <code>fields_for</code>.</p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+<span class='line-number'>7</span>
+<span class='line-number'>8</span>
+</pre></td><td class='code'><pre><code class='erb'><span class='line'><span class="cp">&lt;%=</span> <span class="n">form_for</span> <span class="vi">@user</span> <span class="k">do</span> <span class="o">|</span><span class="n">f</span><span class="o">|</span> <span class="cp">%&gt;</span><span class="x"></span>
+</span><span class='line'><span class="x">  </span><span class="cp">&lt;%=</span> <span class="n">f</span><span class="o">.</span><span class="n">text_field</span> <span class="ss">:name</span> <span class="cp">%&gt;</span><span class="x"></span>
+</span><span class='line'><span class="x">  </span><span class="cp">&lt;%=</span> <span class="n">f</span><span class="o">.</span><span class="n">fields_for</span> <span class="vi">@user</span><span class="o">.</span><span class="n">email</span> <span class="k">do</span> <span class="o">|</span><span class="nb">p</span><span class="o">|</span> <span class="cp">%&gt;</span><span class="x"></span>
+</span><span class='line'><span class="x">    </span><span class="cp">&lt;%=</span> <span class="nb">p</span><span class="o">.</span><span class="n">email_field</span> <span class="ss">:email</span> <span class="cp">%&gt;</span><span class="x"></span>
+</span><span class='line'><span class="x">  </span><span class="cp">&lt;%</span> <span class="k">end</span> <span class="cp">%&gt;</span><span class="x"></span>
+</span><span class='line'><span class="x">  </span><span class="cp">&lt;%=</span> <span class="n">f</span><span class="o">.</span><span class="n">password_field</span> <span class="ss">:password</span> <span class="cp">%&gt;</span><span class="x"></span>
+</span><span class='line'><span class="x">  </span><span class="cp">&lt;%=</span> <span class="n">f</span><span class="o">.</span><span class="n">password_field</span> <span class="ss">:password_confimation</span> <span class="cp">%&gt;</span><span class="x"></span>
+</span><span class='line'><span class="cp">&lt;%</span> <span class="k">end</span><span class="cp">%&gt;</span><span class="x"></span>
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p>The obvious problem with this is that it couples the view directly to the database structure. If we decided to make changes to the database schema later, the form will need to be updated. I also find that <code>accepts_nested_attributes_for</code> is awkward to test and the subtleties of the api are difficult to remember and work with (e.g. mass assignment errors, associated validations).</p>
+
+<p>Another option that many rails developers might opt for in this situation is to de-normalize the database and smash the <code>emails</code> and <code>users</code> tables together into one. In this case I decided to keep <code>emails</code> as a separate entity because they are going to have their own attributes (e.g. <code>verified?</code>). I also anticipate a requirement that users will have many emails. While there is <a href="http://www.codinghorror.com/blog/2008/07/maybe-normalizing-isnt-normal.html">a case</a> to be made against normalization in some situations, the fact that it makes your view layer simpler to code is part of it.</p>
+
+<h2>The Solution</h2>
+
+<p>Lately, the approach I have been using in these situations has been to create a class to accept the form data and translate it to the active record layer. In Rails 3.0 the API required by controllers and views was extracted into <a href="http://yehudakatz.com/2010/01/10/activemodel-make-any-ruby-object-feel-like-activerecord/">a set of modules</a> that can be included as needed. This allows us to create an object that is guaranteed to jive with <code>form_for</code> (or any other form gem you may be using) that is completely decoupled from <code>ActiveRecord</code>. To handle the example above, we might end up with something like this:</p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+<span class='line-number'>7</span>
+<span class='line-number'>8</span>
+<span class='line-number'>9</span>
+<span class='line-number'>10</span>
+<span class='line-number'>11</span>
+<span class='line-number'>12</span>
+<span class='line-number'>13</span>
+<span class='line-number'>14</span>
+<span class='line-number'>15</span>
+<span class='line-number'>16</span>
+<span class='line-number'>17</span>
+<span class='line-number'>18</span>
+<span class='line-number'>19</span>
+<span class='line-number'>20</span>
+<span class='line-number'>21</span>
+<span class='line-number'>22</span>
+<span class='line-number'>23</span>
+<span class='line-number'>24</span>
+<span class='line-number'>25</span>
+<span class='line-number'>26</span>
+<span class='line-number'>27</span>
+<span class='line-number'>28</span>
+<span class='line-number'>29</span>
+<span class='line-number'>30</span>
+<span class='line-number'>31</span>
+<span class='line-number'>32</span>
+<span class='line-number'>33</span>
+<span class='line-number'>34</span>
+<span class='line-number'>35</span>
+<span class='line-number'>36</span>
+</pre></td><td class='code'><pre><code class='ruby'><span class='line'><span class="k">class</span> <span class="nc">Profile</span>
+</span><span class='line'>  <span class="kp">include</span> <span class="no">ActiveModel</span><span class="o">::</span><span class="no">Validations</span>
+</span><span class='line'>  <span class="kp">include</span> <span class="no">ActiveModel</span><span class="o">::</span><span class="no">Conversion</span>
+</span><span class='line'>  <span class="kp">extend</span> <span class="no">ActiveModel</span><span class="o">::</span><span class="no">Naming</span>
+</span><span class='line'>
+</span><span class='line'>  <span class="kp">attr_reader</span> <span class="ss">:user</span>
+</span><span class='line'>
+</span><span class='line'>  <span class="n">delegate</span>  <span class="ss">:name</span><span class="p">,</span> <span class="ss">:name</span><span class="o">=</span><span class="p">,</span> <span class="ss">:password</span><span class="p">,</span> <span class="ss">:password</span><span class="o">=</span><span class="p">,</span> <span class="ss">:password_confirmation</span><span class="p">,</span>
+</span><span class='line'>            <span class="ss">:password_confirmation</span><span class="o">=</span><span class="p">,</span> <span class="ss">:persisted?</span><span class="p">,</span> <span class="ss">:id</span><span class="p">,</span> <span class="ss">:to</span> <span class="o">=&gt;</span> <span class="ss">:user</span><span class="p">,</span>
+</span><span class='line'>            <span class="ss">:prefix</span> <span class="o">=&gt;</span> <span class="kp">false</span><span class="p">,</span> <span class="ss">:allow_nil</span> <span class="o">=&gt;</span> <span class="kp">false</span>
+</span><span class='line'>
+</span><span class='line'>  <span class="k">def</span> <span class="nf">initialize</span><span class="p">(</span><span class="n">user</span><span class="p">,</span> <span class="n">email</span><span class="p">)</span>
+</span><span class='line'>    <span class="vi">@user</span> <span class="o">=</span> <span class="n">user</span>
+</span><span class='line'>    <span class="vi">@email</span> <span class="o">=</span> <span class="n">email</span>
+</span><span class='line'>  <span class="k">end</span>
+</span><span class='line'>
+</span><span class='line'>  <span class="k">def</span> <span class="nf">email</span>
+</span><span class='line'>    <span class="vi">@email</span><span class="o">.</span><span class="n">address</span>
+</span><span class='line'>  <span class="k">end</span>
+</span><span class='line'>
+</span><span class='line'>  <span class="k">def</span> <span class="nf">email</span><span class="o">=</span><span class="p">(</span><span class="n">email_addr</span><span class="p">)</span>
+</span><span class='line'>    <span class="vi">@email</span><span class="o">.</span><span class="n">address</span> <span class="o">=</span> <span class="n">email_addr</span>
+</span><span class='line'>  <span class="k">end</span>
+</span><span class='line'>
+</span><span class='line'>  <span class="k">def</span> <span class="nf">attributes</span><span class="o">=</span><span class="p">(</span><span class="n">attributes</span><span class="p">)</span>
+</span><span class='line'>    <span class="n">attributes</span><span class="o">.</span><span class="n">each</span> <span class="p">{</span> <span class="o">|</span><span class="n">k</span><span class="p">,</span> <span class="n">v</span><span class="o">|</span> <span class="nb">self</span><span class="o">.</span><span class="n">send</span><span class="p">(</span><span class="s2">&quot;</span><span class="si">#{</span><span class="n">k</span><span class="si">}</span><span class="s2">=&quot;</span><span class="p">,</span> <span class="n">v</span><span class="p">)</span> <span class="p">}</span>
+</span><span class='line'>  <span class="k">end</span>
+</span><span class='line'>
+</span><span class='line'>  <span class="k">def</span> <span class="nf">save!</span>
+</span><span class='line'>    <span class="no">User</span><span class="o">.</span><span class="n">transaction</span> <span class="k">do</span>
+</span><span class='line'>      <span class="vi">@user</span><span class="o">.</span><span class="n">save!</span>
+</span><span class='line'>      <span class="vi">@email</span><span class="o">.</span><span class="n">save!</span>
+</span><span class='line'>    <span class="k">end</span>
+</span><span class='line'>  <span class="k">end</span>
+</span><span class='line'>
+</span><span class='line'><span class="k">end</span>
+</span></code></pre></td></tr></table></div></figure>
+
+
+
+
+<figure class='code'><figcaption><span>Usage in the controller</span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+<span class='line-number'>7</span>
+<span class='line-number'>8</span>
+<span class='line-number'>9</span>
+<span class='line-number'>10</span>
+</pre></td><td class='code'><pre><code class='ruby'><span class='line'><span class="k">def</span> <span class="nf">create</span>
+</span><span class='line'>  <span class="vi">@profile</span> <span class="o">=</span> <span class="no">Profile</span><span class="o">.</span><span class="n">new</span><span class="p">(</span><span class="no">User</span><span class="o">.</span><span class="n">new</span><span class="p">,</span> <span class="no">Email</span><span class="o">.</span><span class="n">new</span><span class="p">)</span>
+</span><span class='line'>  <span class="vi">@profile</span><span class="o">.</span><span class="n">attributes</span> <span class="o">=</span> <span class="n">params</span><span class="o">[</span><span class="ss">:profile</span><span class="o">]</span>
+</span><span class='line'>  <span class="k">if</span> <span class="vi">@profile</span><span class="o">.</span><span class="n">valid?</span>
+</span><span class='line'>    <span class="vi">@profile</span><span class="o">.</span><span class="n">save!</span>
+</span><span class='line'>    <span class="n">redirect_to</span> <span class="n">some_url</span><span class="p">,</span> <span class="ss">:notice</span> <span class="o">=&gt;</span> <span class="s2">&quot;Huzzah!&quot;</span>
+</span><span class='line'>  <span class="k">else</span>
+</span><span class='line'>    <span class="n">render</span> <span class="ss">:action</span> <span class="o">=&gt;</span> <span class="ss">:new</span>
+</span><span class='line'>  <span class="k">end</span>
+</span><span class='line'><span class="k">end</span>
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p>By adding a thin layer of indirection, this pattern reduces the coupling between the view layer and database. There are a few other big wins that come with it as well:</p>
+
+<ul>
+<li>the form markup is now as simple as it would be for one model with no associations</li>
+<li>we can move business logic out of the <code>ActiveRecord</code> classes and allow them to focus on their persistence responsibility (e.g. hash and salt the password before passing assigning it to <code>User</code>)</li>
+<li>we can add a different set of validations at the profile level (e.g. that are only pertinent to new users for example the confirmation of password)</li>
+</ul>
+
+
+<p>Obviously we could enhance the <code>Profile</code> class to make it feel more like an <code>ActiveRecord</code> object (e.g. define <code>update_attributes</code> or a static <code>find_by_user_id</code> method that initializes the model for existing records) but for simple cases there is no need.</p>
+
+<p>As always, this pattern should be used sparingly. Resist the urge to optimize prematurely.</p>
+</div>
+
+</article>
+
+	<div class="share">
+	<div class="addthis_toolbox addthis_default_style ">
+	
+	<a class="addthis_button_facebook_like" fb:like:layout="button_count"></a>
+	
+	
+	<a class="addthis_button_tweet"></a>
+	
+	
+	<a class="addthis_button_google_plusone" g:plusone:size="medium"></a>
+	
+	<a class="addthis_counter addthis_pill_style"></a>
+	</div>
+  <script type="text/javascript" src="http://s7.addthis.com/js/250/addthis_widget.js#pubid="></script>
+</div>
+
+
+
+<section id="comment">
+    <h1 class="title">Comments</h1>
+    <div id="disqus_thread" aria-live="polite"><noscript>Please enable JavaScript to view the <a href="http://disqus.com/?ref_noscript">comments powered by Disqus.</a></noscript>
+</div>
+</section>
+</div>
+			</div>
+			<footer id="footer" class="inner">Copyright &copy; 2013
+
+    Matthew Robertson
+
+
+Design credit: <a href="http://shashankmehta.in/archive/2012/greyshade.html">Shashank Mehta</a></footer>
+			<script src="/javascripts/slash.js"></script>
+<script src="/javascripts/jquery.fancybox.pack.js"></script>
+<script type="text/javascript">
+(function($){
+	$('.fancybox').fancybox();
+})(jQuery);
+</script> <!-- Delete or comment this line to disable Fancybox -->
+
+
+<script type="text/javascript">
+      var disqus_shortname = 'mattsoctopress';
+      
+        
+        // var disqus_developer = 1;
+        var disqus_identifier = 'http://matthewrobertson.org/blog/2012/09/20/decoupling-rails-forms-from-the-database/';
+        var disqus_url = 'http://matthewrobertson.org/blog/2012/09/20/decoupling-rails-forms-from-the-database/';
+        var disqus_script = 'embed.js';
+      
+    (function () {
+      var dsq = document.createElement('script'); dsq.type = 'text/javascript'; dsq.async = true;
+      dsq.src = 'http://' + disqus_shortname + '.disqus.com/' + disqus_script;
+      (document.getElementsByTagName('head')[0] || document.getElementsByTagName('body')[0]).appendChild(dsq);
+    }());
+</script>
+
+
+
+	<script type="text/javascript">
+		var _gaq = _gaq || [];
+		_gaq.push(['_setAccount', 'UA-29214705-1']);
+		_gaq.push(['_trackPageview']);
+
+		(function() {
+			var ga = document.createElement('script'); ga.type = 'text/javascript'; ga.async = true;
+			ga.src = ('https:' == document.location.protocol ? 'https://ssl' : 'http://www') + '.google-analytics.com/ga.js';
+			var s = document.getElementsByTagName('script')[0]; s.parentNode.insertBefore(ga, s);
+		})();
+	</script>
+
+
+
+		</div>
+	</div>
+</body>
+</html>

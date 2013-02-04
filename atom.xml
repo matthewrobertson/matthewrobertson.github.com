@@ -1,0 +1,267 @@
+<?xml version="1.0" encoding="utf-8"?>
+<feed xmlns="http://www.w3.org/2005/Atom">
+
+  <title><![CDATA[Matthew Robertson]]></title>
+  <link href="http://matthewrobertson.org/atom.xml" rel="self"/>
+  <link href="http://matthewrobertson.org/"/>
+  <updated>2013-02-03T17:23:06-08:00</updated>
+  <id>http://matthewrobertson.org/</id>
+  <author>
+    <name><![CDATA[Matthew Robertson]]></name>
+    
+  </author>
+  <generator uri="http://octopress.org/">Octopress</generator>
+
+  
+  <entry>
+    <title type="html"><![CDATA[How To Stop Using Nested Forms]]></title>
+    <link href="http://matthewrobertson.org/blog/2012/09/20/decoupling-rails-forms-from-the-database/"/>
+    <updated>2012-09-20T01:31:00-07:00</updated>
+    <id>http://matthewrobertson.org/blog/2012/09/20/decoupling-rails-forms-from-the-database</id>
+    <content type="html"><![CDATA[<p>One issue that caused me a lot of pain on my first few rails projects was the natural coupling that developed between the database and the rest of my application. The “skinny controller, fat model” mantra has been the prevalent in the Rails community since the early days. The problem with this philosophy is that it is only 50% accurate. If you are building good object oriented software, you shouldn’t have a fat anything.<!-- more --> When all of your business logic is encased in ActiveRecord objects, there can be some unfortunate consequences: things become difficult to reason about, it is hard to test objects in isolation and changing the database schema is a painful process that demands updates to many parts of the application.</p>
+
+<p>In my opinion, one of worst offending features of rails is the ability to build nested model forms with <code>fields_for</code> and <code>accepts_nested_attributes_for</code>, as doing so directly couples your view layer to your database schema. Lately, I have been using a very simple technique to prevent this problem that I call building aggregate models.</p>
+
+<h2>An Example</h2>
+
+<p>Consider as an example, an application in which the <code>User</code> model <code>has_one</code> associated <code>Email</code>:</p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+<span class='line-number'>7</span>
+<span class='line-number'>8</span>
+<span class='line-number'>9</span>
+<span class='line-number'>10</span>
+<span class='line-number'>11</span>
+<span class='line-number'>12</span>
+<span class='line-number'>13</span>
+<span class='line-number'>14</span>
+</pre></td><td class='code'><pre><code class='ruby'><span class='line'><span class="k">class</span> <span class="nc">User</span> <span class="o">&lt;</span> <span class="no">ActiveRecord</span><span class="o">::</span><span class="no">Base</span>
+</span><span class='line'>  <span class="n">attr_accessible</span> <span class="ss">:name</span><span class="p">,</span> <span class="ss">:password</span><span class="p">,</span> <span class="ss">:password_confirmation</span>
+</span><span class='line'>  <span class="n">has_one</span> <span class="ss">:email</span>
+</span><span class='line'>  <span class="n">accepts_nested_attributes_for</span> <span class="ss">:email</span>
+</span><span class='line'>
+</span><span class='line'>  <span class="c1"># validations etc...</span>
+</span><span class='line'><span class="k">end</span>
+</span><span class='line'>
+</span><span class='line'><span class="k">class</span> <span class="nc">Email</span> <span class="o">&lt;</span> <span class="no">ActiveRecord</span><span class="o">::</span><span class="no">Base</span>
+</span><span class='line'>  <span class="n">attr_accessible</span> <span class="ss">:address</span><span class="p">,</span> <span class="ss">:confirmed</span>
+</span><span class='line'>  <span class="n">belongs_to</span> <span class="ss">:user</span>
+</span><span class='line'>
+</span><span class='line'>  <span class="c1"># validations etc...</span>
+</span><span class='line'><span class="k">end</span>
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p>The rails way to handle this association is to build a nested model form via <code>fields_for</code>.</p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+<span class='line-number'>7</span>
+<span class='line-number'>8</span>
+</pre></td><td class='code'><pre><code class='erb'><span class='line'><span class="cp">&lt;%=</span> <span class="n">form_for</span> <span class="vi">@user</span> <span class="k">do</span> <span class="o">|</span><span class="n">f</span><span class="o">|</span> <span class="cp">%&gt;</span><span class="x"></span>
+</span><span class='line'><span class="x">  </span><span class="cp">&lt;%=</span> <span class="n">f</span><span class="o">.</span><span class="n">text_field</span> <span class="ss">:name</span> <span class="cp">%&gt;</span><span class="x"></span>
+</span><span class='line'><span class="x">  </span><span class="cp">&lt;%=</span> <span class="n">f</span><span class="o">.</span><span class="n">fields_for</span> <span class="vi">@user</span><span class="o">.</span><span class="n">email</span> <span class="k">do</span> <span class="o">|</span><span class="nb">p</span><span class="o">|</span> <span class="cp">%&gt;</span><span class="x"></span>
+</span><span class='line'><span class="x">    </span><span class="cp">&lt;%=</span> <span class="nb">p</span><span class="o">.</span><span class="n">email_field</span> <span class="ss">:email</span> <span class="cp">%&gt;</span><span class="x"></span>
+</span><span class='line'><span class="x">  </span><span class="cp">&lt;%</span> <span class="k">end</span> <span class="cp">%&gt;</span><span class="x"></span>
+</span><span class='line'><span class="x">  </span><span class="cp">&lt;%=</span> <span class="n">f</span><span class="o">.</span><span class="n">password_field</span> <span class="ss">:password</span> <span class="cp">%&gt;</span><span class="x"></span>
+</span><span class='line'><span class="x">  </span><span class="cp">&lt;%=</span> <span class="n">f</span><span class="o">.</span><span class="n">password_field</span> <span class="ss">:password_confimation</span> <span class="cp">%&gt;</span><span class="x"></span>
+</span><span class='line'><span class="cp">&lt;%</span> <span class="k">end</span><span class="cp">%&gt;</span><span class="x"></span>
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p>The obvious problem with this is that it couples the view directly to the database structure. If we decided to make changes to the database schema later, the form will need to be updated. I also find that <code>accepts_nested_attributes_for</code> is awkward to test and the subtleties of the api are difficult to remember and work with (e.g. mass assignment errors, associated validations).</p>
+
+<p>Another option that many rails developers might opt for in this situation is to de-normalize the database and smash the <code>emails</code> and <code>users</code> tables together into one. In this case I decided to keep <code>emails</code> as a separate entity because they are going to have their own attributes (e.g. <code>verified?</code>). I also anticipate a requirement that users will have many emails. While there is <a href="http://www.codinghorror.com/blog/2008/07/maybe-normalizing-isnt-normal.html">a case</a> to be made against normalization in some situations, the fact that it makes your view layer simpler to code is part of it.</p>
+
+<h2>The Solution</h2>
+
+<p>Lately, the approach I have been using in these situations has been to create a class to accept the form data and translate it to the active record layer. In Rails 3.0 the API required by controllers and views was extracted into <a href="http://yehudakatz.com/2010/01/10/activemodel-make-any-ruby-object-feel-like-activerecord/">a set of modules</a> that can be included as needed. This allows us to create an object that is guaranteed to jive with <code>form_for</code> (or any other form gem you may be using) that is completely decoupled from <code>ActiveRecord</code>. To handle the example above, we might end up with something like this:</p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+<span class='line-number'>7</span>
+<span class='line-number'>8</span>
+<span class='line-number'>9</span>
+<span class='line-number'>10</span>
+<span class='line-number'>11</span>
+<span class='line-number'>12</span>
+<span class='line-number'>13</span>
+<span class='line-number'>14</span>
+<span class='line-number'>15</span>
+<span class='line-number'>16</span>
+<span class='line-number'>17</span>
+<span class='line-number'>18</span>
+<span class='line-number'>19</span>
+<span class='line-number'>20</span>
+<span class='line-number'>21</span>
+<span class='line-number'>22</span>
+<span class='line-number'>23</span>
+<span class='line-number'>24</span>
+<span class='line-number'>25</span>
+<span class='line-number'>26</span>
+<span class='line-number'>27</span>
+<span class='line-number'>28</span>
+<span class='line-number'>29</span>
+<span class='line-number'>30</span>
+<span class='line-number'>31</span>
+<span class='line-number'>32</span>
+<span class='line-number'>33</span>
+<span class='line-number'>34</span>
+<span class='line-number'>35</span>
+<span class='line-number'>36</span>
+</pre></td><td class='code'><pre><code class='ruby'><span class='line'><span class="k">class</span> <span class="nc">Profile</span>
+</span><span class='line'>  <span class="kp">include</span> <span class="no">ActiveModel</span><span class="o">::</span><span class="no">Validations</span>
+</span><span class='line'>  <span class="kp">include</span> <span class="no">ActiveModel</span><span class="o">::</span><span class="no">Conversion</span>
+</span><span class='line'>  <span class="kp">extend</span> <span class="no">ActiveModel</span><span class="o">::</span><span class="no">Naming</span>
+</span><span class='line'>
+</span><span class='line'>  <span class="kp">attr_reader</span> <span class="ss">:user</span>
+</span><span class='line'>
+</span><span class='line'>  <span class="n">delegate</span>  <span class="ss">:name</span><span class="p">,</span> <span class="ss">:name</span><span class="o">=</span><span class="p">,</span> <span class="ss">:password</span><span class="p">,</span> <span class="ss">:password</span><span class="o">=</span><span class="p">,</span> <span class="ss">:password_confirmation</span><span class="p">,</span>
+</span><span class='line'>            <span class="ss">:password_confirmation</span><span class="o">=</span><span class="p">,</span> <span class="ss">:persisted?</span><span class="p">,</span> <span class="ss">:id</span><span class="p">,</span> <span class="ss">:to</span> <span class="o">=&gt;</span> <span class="ss">:user</span><span class="p">,</span>
+</span><span class='line'>            <span class="ss">:prefix</span> <span class="o">=&gt;</span> <span class="kp">false</span><span class="p">,</span> <span class="ss">:allow_nil</span> <span class="o">=&gt;</span> <span class="kp">false</span>
+</span><span class='line'>
+</span><span class='line'>  <span class="k">def</span> <span class="nf">initialize</span><span class="p">(</span><span class="n">user</span><span class="p">,</span> <span class="n">email</span><span class="p">)</span>
+</span><span class='line'>    <span class="vi">@user</span> <span class="o">=</span> <span class="n">user</span>
+</span><span class='line'>    <span class="vi">@email</span> <span class="o">=</span> <span class="n">email</span>
+</span><span class='line'>  <span class="k">end</span>
+</span><span class='line'>
+</span><span class='line'>  <span class="k">def</span> <span class="nf">email</span>
+</span><span class='line'>    <span class="vi">@email</span><span class="o">.</span><span class="n">address</span>
+</span><span class='line'>  <span class="k">end</span>
+</span><span class='line'>
+</span><span class='line'>  <span class="k">def</span> <span class="nf">email</span><span class="o">=</span><span class="p">(</span><span class="n">email_addr</span><span class="p">)</span>
+</span><span class='line'>    <span class="vi">@email</span><span class="o">.</span><span class="n">address</span> <span class="o">=</span> <span class="n">email_addr</span>
+</span><span class='line'>  <span class="k">end</span>
+</span><span class='line'>
+</span><span class='line'>  <span class="k">def</span> <span class="nf">attributes</span><span class="o">=</span><span class="p">(</span><span class="n">attributes</span><span class="p">)</span>
+</span><span class='line'>    <span class="n">attributes</span><span class="o">.</span><span class="n">each</span> <span class="p">{</span> <span class="o">|</span><span class="n">k</span><span class="p">,</span> <span class="n">v</span><span class="o">|</span> <span class="nb">self</span><span class="o">.</span><span class="n">send</span><span class="p">(</span><span class="s2">&quot;</span><span class="si">#{</span><span class="n">k</span><span class="si">}</span><span class="s2">=&quot;</span><span class="p">,</span> <span class="n">v</span><span class="p">)</span> <span class="p">}</span>
+</span><span class='line'>  <span class="k">end</span>
+</span><span class='line'>
+</span><span class='line'>  <span class="k">def</span> <span class="nf">save!</span>
+</span><span class='line'>    <span class="no">User</span><span class="o">.</span><span class="n">transaction</span> <span class="k">do</span>
+</span><span class='line'>      <span class="vi">@user</span><span class="o">.</span><span class="n">save!</span>
+</span><span class='line'>      <span class="vi">@email</span><span class="o">.</span><span class="n">save!</span>
+</span><span class='line'>    <span class="k">end</span>
+</span><span class='line'>  <span class="k">end</span>
+</span><span class='line'>
+</span><span class='line'><span class="k">end</span>
+</span></code></pre></td></tr></table></div></figure>
+
+
+
+
+<figure class='code'><figcaption><span>Usage in the controller</span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+<span class='line-number'>7</span>
+<span class='line-number'>8</span>
+<span class='line-number'>9</span>
+<span class='line-number'>10</span>
+</pre></td><td class='code'><pre><code class='ruby'><span class='line'><span class="k">def</span> <span class="nf">create</span>
+</span><span class='line'>  <span class="vi">@profile</span> <span class="o">=</span> <span class="no">Profile</span><span class="o">.</span><span class="n">new</span><span class="p">(</span><span class="no">User</span><span class="o">.</span><span class="n">new</span><span class="p">,</span> <span class="no">Email</span><span class="o">.</span><span class="n">new</span><span class="p">)</span>
+</span><span class='line'>  <span class="vi">@profile</span><span class="o">.</span><span class="n">attributes</span> <span class="o">=</span> <span class="n">params</span><span class="o">[</span><span class="ss">:profile</span><span class="o">]</span>
+</span><span class='line'>  <span class="k">if</span> <span class="vi">@profile</span><span class="o">.</span><span class="n">valid?</span>
+</span><span class='line'>    <span class="vi">@profile</span><span class="o">.</span><span class="n">save!</span>
+</span><span class='line'>    <span class="n">redirect_to</span> <span class="n">some_url</span><span class="p">,</span> <span class="ss">:notice</span> <span class="o">=&gt;</span> <span class="s2">&quot;Huzzah!&quot;</span>
+</span><span class='line'>  <span class="k">else</span>
+</span><span class='line'>    <span class="n">render</span> <span class="ss">:action</span> <span class="o">=&gt;</span> <span class="ss">:new</span>
+</span><span class='line'>  <span class="k">end</span>
+</span><span class='line'><span class="k">end</span>
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p>By adding a thin layer of indirection, this pattern reduces the coupling between the view layer and database. There are a few other big wins that come with it as well:</p>
+
+<ul>
+<li>the form markup is now as simple as it would be for one model with no associations</li>
+<li>we can move business logic out of the <code>ActiveRecord</code> classes and allow them to focus on their persistence responsibility (e.g. hash and salt the password before passing assigning it to <code>User</code>)</li>
+<li>we can add a different set of validations at the profile level (e.g. that are only pertinent to new users for example the confirmation of password)</li>
+</ul>
+
+
+<p>Obviously we could enhance the <code>Profile</code> class to make it feel more like an <code>ActiveRecord</code> object (e.g. define <code>update_attributes</code> or a static <code>find_by_user_id</code> method that initializes the model for existing records) but for simple cases there is no need.</p>
+
+<p>As always, this pattern should be used sparingly. Resist the urge to optimize prematurely.</p>
+]]></content>
+  </entry>
+  
+  <entry>
+    <title type="html"><![CDATA[Javascript Templates and Chrome's Content Security Policy]]></title>
+    <link href="http://matthewrobertson.org/blog/2012/07/10/javascript-templates-and-chromes-content-security-policy/"/>
+    <updated>2012-07-10T23:34:00-07:00</updated>
+    <id>http://matthewrobertson.org/blog/2012/07/10/javascript-templates-and-chromes-content-security-policy</id>
+    <content type="html"><![CDATA[<p>Lately, I have been spending a lot of time working on an open source EPUB3 viewer called <a href="https://github.com/readium/readium">Readium</a>. The project is built entirely with HTML5 / javascript and distributed as a chrome extension. A while ago while testing in <a href="https://tools.google.com/dlpage/chromesxs/">Chrome Canary</a> I noticed a warning that support for manifest version 1 is being phased out in favour of version 2.<!-- more --> At first glance, this upgrade required only a couple very minor modifications to my <code>manifest.json</code> (a list of all changes in v2 is available <a href="http://code.google.com/chrome/extensions/manifestVersion.html">here</a>). But, these things are never easy, and sure enough when I tried to use the extension with the updated <code>manifest.json</code> everything was busted. I opened the developer console and found the following error message:</p>
+
+<p><code>Uncaught Error: Code generation from strings disallowed for this context</code></p>
+
+<h2>The Problem</h2>
+
+<p>It turns out the biggest change in manifest version 2 is the inclusion of a default <a href="http://code.google.com/chrome/extensions/contentSecurityPolicy.html">content security policy</a>. Two features that have been strictly locked down by this policy are the execution of inline javascipt and the evaluation of strings with the use of both <code>eval()</code> and <code>new Function()</code>. The reason is that these features open a door for a malicious third-party to coerce your application into evaling a string of injected code and thereby abuse the elevated permissions you enjoy as an extension. This is a GOOD thing. Security should always be a top priority and as extensions are granted more and more permissions the potential harm from these types of exploits is increasing. Besides, <a href="http://en.wikipedia.org/wiki/Douglas_Crockford">Crockford</a> listed evaling strings as one of the <a href="http://oreilly.com/javascript/excerpts/javascript-good-parts/bad-parts.html#eval">bad parts</a> so you probably shouldn&#8217;t be doing it anyway. That said, if you are using a Javascript templating library, it is likely you are going to run into problems.</p>
+
+<p>Javascript templates basically work by taking some text content and doing some lexical parsing to split the code and html tokens. Those tokens are then used to compile a function that returns an HTML string. John Resig wrote a nice <a href="http://ejohn.org/blog/javascript-micro-templating/">blog post</a> that goes into a more depth. The problem with Resig&#8217;s approach (which is very similar to how many client side templating libraries work) is that it uses <code>new Funtion()</code> to create a function from a string, an action that is now banned by Chrome&#8217;s content security policy.</p>
+
+<h2>The Solution</h2>
+
+<p>In a recent <a href="http://www.youtube.com/watch?v=x9KOS1VQgqQ&amp;html5=1">I/O talk</a> the chrome extensions team suggested that one way to use javascript templates in compliance with the new CSP is to create a sandboxed page (in which <code>eval()</code> and <code>new Function</code> are allowed), load it in an <code>&lt;iframe&gt;</code> and then pass messages back and forth to render templates. They have even created a basic <a href="https://github.com/GoogleChrome/chrome-app-samples/tree/master/eval-in-iframe">sample</a> that demonstrates how to do this.</p>
+
+<p>But, if the idea of passing messages to a sandboxed iframe has your eyes glazing over, <strong>DON&#8217;T PANIC</strong> there is an easier way: precompile your templates before you deploy your extension. If you peform the <code>template =&gt; function</code> conversion as part of your build process, you remove the need to evade the content security policy at run time. Two libraries I am aware of that offer precompilation as a feature are <a href="http://handlebarsjs.com/">handlebarsjs</a> and <a href="https://github.com/sstephenson/eco/">ECO</a>. I decided to go with handlebars for my project and found it extremely simple to set up. If you want to do the same here is a step by step guide:</p>
+
+<h3>1. Install handlebarsjs</h3>
+
+<p>Handlebarsjs is distributed as an npm package, so if you don&#8217;t have nodejs installed get it from <a href="http://nodejs.org/#download">here</a>. Once you have node you can install handlebarsjs using npm:</p>
+
+<p><code>$ npm install handlebars -g</code></p>
+
+<p>(the <code>-g</code> option gives you global installation so you can use handlebars for any project on your system)</p>
+
+<h3>2. Put each template into a file of its own.</h3>
+
+<p>If you have a setup like mine, your templates are all in <code>&lt;script type="text/template"&gt;</code> tags in your html files. In order to get precompilation working you need to put each template into its own (uniquely named) file. Each file should have a <code>.handlebars</code> extension.</p>
+
+<h3>3. Convert your templates to handlebarsjs tempates</h3>
+
+<p>If you weren&#8217;t already using handlebarsjs, you will need to convert your templates to use the handlebarjs format. This will require varying amounts of effort depending on the template library you were using previously. I was using <a href="http://underscorejs.org/#template">Underscore&#8217;s microtemplates</a>, but I kept the logic in my templates very thin. A global find and replace that swapped <code>&lt;%=</code> and <code>%&gt;</code> for <code>{ {</code> and <code>}}</code> took care of 90% of the conversion. A good overview of how handlebarsjs works is available on <a href="http://handlebarsjs.com/">their site</a>.</p>
+
+<h3>4. Compile your templates</h3>
+
+<p>You can compile all of your <code>.handlebars</code> templates into a single <code>.js</code> file in one shot like this:</p>
+
+<p><code>$ handlebars path/to/templates/*.handlebars -f path/to/scripts/templates.js</code></p>
+
+<p>A more in depth description of precompilation is available <a href="http://handlebarsjs.com/precompilation.html">here</a>.</p>
+
+<h3>5. Include some scripts</h3>
+
+<p>Before you can start using your templates, you need to include them in your code. Add a <code>&lt;script&gt;</code> tag to your html that includes the <code>templates.js</code> file we just generated. You also need to include the handlebars runtime, which you can download from <a href="https://github.com/wycats/handlebars.js/archives/master">github</a>.</p>
+
+<h3>6. Use &#8216;em</h3>
+
+<p>Handlebars makes all of your templates accesable via the global <code>Handlbars.templates</code> object. Each template is named according to its file name, so if your input file is <code>person.handlebars,</code> it will be available as <code>Handlebars.templates.person</code>.</p>
+
+<h3>Bonus</h3>
+
+<p>If you like to over-optimize your development environment like I do, you can use this <a href="https://github.com/aiwilliams/guard-handlebars">Guard configuration</a> to watch your <code>.handlebars</code> files and re-compile them automatically whenever you make changes.</p>
+
+<h2>Added Perks</h2>
+
+<p>My main motivation for doing this was to move my extension off the deprecated Manifest version 1 configuration, but there are other benefits as well. Having each template in its own file is much tidier, and thus, more maintainable. And, because your clients no longer have to perform the compilation step when loading the page, you get a performance bonus too!</p>
+]]></content>
+  </entry>
+  
+</feed>

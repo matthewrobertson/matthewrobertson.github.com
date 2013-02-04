@@ -1,0 +1,79 @@
+<?xml version="1.0" encoding="utf-8"?>
+<feed xmlns="http://www.w3.org/2005/Atom">
+
+  <title><![CDATA[Category: Javascript | Matthew Robertson]]></title>
+  <link href="http://matthewrobertson.org/blog/categories/javascript/atom.xml" rel="self"/>
+  <link href="http://matthewrobertson.org/"/>
+  <updated>2013-02-03T17:23:06-08:00</updated>
+  <id>http://matthewrobertson.org/</id>
+  <author>
+    <name><![CDATA[Matthew Robertson]]></name>
+    
+  </author>
+  <generator uri="http://octopress.org/">Octopress</generator>
+
+  
+  <entry>
+    <title type="html"><![CDATA[Javascript Templates and Chrome's Content Security Policy]]></title>
+    <link href="http://matthewrobertson.org/blog/2012/07/10/javascript-templates-and-chromes-content-security-policy/"/>
+    <updated>2012-07-10T23:34:00-07:00</updated>
+    <id>http://matthewrobertson.org/blog/2012/07/10/javascript-templates-and-chromes-content-security-policy</id>
+    <content type="html"><![CDATA[<p>Lately, I have been spending a lot of time working on an open source EPUB3 viewer called <a href="https://github.com/readium/readium">Readium</a>. The project is built entirely with HTML5 / javascript and distributed as a chrome extension. A while ago while testing in <a href="https://tools.google.com/dlpage/chromesxs/">Chrome Canary</a> I noticed a warning that support for manifest version 1 is being phased out in favour of version 2.<!-- more --> At first glance, this upgrade required only a couple very minor modifications to my <code>manifest.json</code> (a list of all changes in v2 is available <a href="http://code.google.com/chrome/extensions/manifestVersion.html">here</a>). But, these things are never easy, and sure enough when I tried to use the extension with the updated <code>manifest.json</code> everything was busted. I opened the developer console and found the following error message:</p>
+
+<p><code>Uncaught Error: Code generation from strings disallowed for this context</code></p>
+
+<h2>The Problem</h2>
+
+<p>It turns out the biggest change in manifest version 2 is the inclusion of a default <a href="http://code.google.com/chrome/extensions/contentSecurityPolicy.html">content security policy</a>. Two features that have been strictly locked down by this policy are the execution of inline javascipt and the evaluation of strings with the use of both <code>eval()</code> and <code>new Function()</code>. The reason is that these features open a door for a malicious third-party to coerce your application into evaling a string of injected code and thereby abuse the elevated permissions you enjoy as an extension. This is a GOOD thing. Security should always be a top priority and as extensions are granted more and more permissions the potential harm from these types of exploits is increasing. Besides, <a href="http://en.wikipedia.org/wiki/Douglas_Crockford">Crockford</a> listed evaling strings as one of the <a href="http://oreilly.com/javascript/excerpts/javascript-good-parts/bad-parts.html#eval">bad parts</a> so you probably shouldn't be doing it anyway. That said, if you are using a Javascript templating library, it is likely you are going to run into problems.</p>
+
+<p>Javascript templates basically work by taking some text content and doing some lexical parsing to split the code and html tokens. Those tokens are then used to compile a function that returns an HTML string. John Resig wrote a nice <a href="http://ejohn.org/blog/javascript-micro-templating/">blog post</a> that goes into a more depth. The problem with Resig's approach (which is very similar to how many client side templating libraries work) is that it uses <code>new Funtion()</code> to create a function from a string, an action that is now banned by Chrome's content security policy.</p>
+
+<h2>The Solution</h2>
+
+<p>In a recent <a href="http://www.youtube.com/watch?v=x9KOS1VQgqQ&amp;html5=1">I/O talk</a> the chrome extensions team suggested that one way to use javascript templates in compliance with the new CSP is to create a sandboxed page (in which <code>eval()</code> and <code>new Function</code> are allowed), load it in an <code>&lt;iframe&gt;</code> and then pass messages back and forth to render templates. They have even created a basic <a href="https://github.com/GoogleChrome/chrome-app-samples/tree/master/eval-in-iframe">sample</a> that demonstrates how to do this.</p>
+
+<p>But, if the idea of passing messages to a sandboxed iframe has your eyes glazing over, <strong>DON'T PANIC</strong> there is an easier way: precompile your templates before you deploy your extension. If you peform the <code>template =&gt; function</code> conversion as part of your build process, you remove the need to evade the content security policy at run time. Two libraries I am aware of that offer precompilation as a feature are <a href="http://handlebarsjs.com/">handlebarsjs</a> and <a href="https://github.com/sstephenson/eco/">ECO</a>. I decided to go with handlebars for my project and found it extremely simple to set up. If you want to do the same here is a step by step guide:</p>
+
+<h3>1. Install handlebarsjs</h3>
+
+<p>Handlebarsjs is distributed as an npm package, so if you don't have nodejs installed get it from <a href="http://nodejs.org/#download">here</a>. Once you have node you can install handlebarsjs using npm:</p>
+
+<p><code>$ npm install handlebars -g</code></p>
+
+<p>(the <code>-g</code> option gives you global installation so you can use handlebars for any project on your system)</p>
+
+<h3>2. Put each template into a file of its own.</h3>
+
+<p>If you have a setup like mine, your templates are all in <code>&lt;script type="text/template"&gt;</code> tags in your html files. In order to get precompilation working you need to put each template into its own (uniquely named) file. Each file should have a <code>.handlebars</code> extension.</p>
+
+<h3>3. Convert your templates to handlebarsjs tempates</h3>
+
+<p>If you weren't already using handlebarsjs, you will need to convert your templates to use the handlebarjs format. This will require varying amounts of effort depending on the template library you were using previously. I was using <a href="http://underscorejs.org/#template">Underscore's microtemplates</a>, but I kept the logic in my templates very thin. A global find and replace that swapped <code>&lt;%=</code> and <code>%&gt;</code> for <code>{ {</code> and <code>}}</code> took care of 90% of the conversion. A good overview of how handlebarsjs works is available on <a href="http://handlebarsjs.com/">their site</a>.</p>
+
+<h3>4. Compile your templates</h3>
+
+<p>You can compile all of your <code>.handlebars</code> templates into a single <code>.js</code> file in one shot like this:</p>
+
+<p><code>$ handlebars path/to/templates/*.handlebars -f path/to/scripts/templates.js</code></p>
+
+<p>A more in depth description of precompilation is available <a href="http://handlebarsjs.com/precompilation.html">here</a>.</p>
+
+<h3>5. Include some scripts</h3>
+
+<p>Before you can start using your templates, you need to include them in your code. Add a <code>&lt;script&gt;</code> tag to your html that includes the <code>templates.js</code> file we just generated. You also need to include the handlebars runtime, which you can download from <a href="https://github.com/wycats/handlebars.js/archives/master">github</a>.</p>
+
+<h3>6. Use 'em</h3>
+
+<p>Handlebars makes all of your templates accesable via the global <code>Handlbars.templates</code> object. Each template is named according to its file name, so if your input file is <code>person.handlebars,</code> it will be available as <code>Handlebars.templates.person</code>.</p>
+
+<h3>Bonus</h3>
+
+<p>If you like to over-optimize your development environment like I do, you can use this <a href="https://github.com/aiwilliams/guard-handlebars">Guard configuration</a> to watch your <code>.handlebars</code> files and re-compile them automatically whenever you make changes.</p>
+
+<h2>Added Perks</h2>
+
+<p>My main motivation for doing this was to move my extension off the deprecated Manifest version 1 configuration, but there are other benefits as well. Having each template in its own file is much tidier, and thus, more maintainable. And, because your clients no longer have to perform the compilation step when loading the page, you get a performance bonus too!</p>
+]]></content>
+  </entry>
+  
+</feed>
