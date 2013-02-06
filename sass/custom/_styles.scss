@@ -1,2 +1,28 @@
 // This File is imported last, and will override other styles in the cascade
 // Add styles here to make changes without digging in too much
+
+body, html {
+  height: 100%;
+}
+
+.container {
+  position: relative;
+  min-height: 100%;
+}
+
+.mid-col {
+  position: absolute;
+  right: 0;
+  min-height: 100%;
+  float: none;
+}
+
+#banner .container .feed li small {
+  display: none;
+}
+
+.container .mid-col footer.inner {
+  text-align: center;
+  margin: 0px 70px 0px 40px;
+  width: auto;
+}
