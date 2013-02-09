@@ -6,6 +6,7 @@
 	position: relative;
 	display: none;
 	@include border-shadow();
+	font-size: 14px;
 	&:hover{
 		a{
 			color: $color-main;
