@@ -6,8 +6,6 @@ comments: true
 categories: Rails Ruby Javacript Mobile Ress
 ---
 
-Introducing RESS
-
 As the diversity of internet connected devices increases, the challenge of building web applications that work well across all of them is becoming both more difficult and more important. Currently, there is a shortage of great ideas in the Rails community about how best to tackle this problem. Most developers lean heavily on one of two approaches: creating a responsive design using CSS media queries or pushing a mobile optimized UI based on user agent string detection<!-- more -->.
 
 Responsive design is quickly becoming dogma for the best way to build mobile friendly websites. While, CSS media queries are great for tweaking the layout of an HTML page to better conform to a variety of screen sizes, they fall short of being the one and only tool needed to provide a truly mobile optimized user experience. This is because there are more factors to consider than screen size: less powerful CPUs, slower network connections and touch oriented interfaces all need to be addressed. When all these limitations are taken into consideration, it is obvious that adding more CSS for the user to download and interpret is not a silver bullet solution.
