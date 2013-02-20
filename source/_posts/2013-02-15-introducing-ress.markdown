@@ -26,7 +26,7 @@ First, serving different versions of a web page at the same URL is not RESTful a
 
 ## A Better Solution
 
-Responsive design and server-side approaches each have their own strengths and weaknesses. I have developed an approach that attempts to combine the strengths of both and packaged it as a [gem called RESS](https://github.com/matthewrobertson/ress). This gem provides three major features that you can use to optimize your application for different platforms.
+Responsive design and server-side approaches each have their own strengths and weaknesses. While working on this problem at [Medeo](https://www.medeo.ca/), I developed an approach that attempts to combine the strengths of both and packaged it as a [gem called RESS](https://github.com/matthewrobertson/ress). This gem provides three major features that you can use to optimize your application for different platforms.
 
 ### 1. Annotating mobile versions of your app:
 
