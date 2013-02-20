@@ -124,7 +124,7 @@
 
 <h3>1. Annotating mobile versions of your app:</h3>
 
-<p>RESS allows you to specify alternate versions of your rails app. Each alternate version has two mandatory attributes: 1) A subdomain under which the version will be served and 2) a media query that describes the type of clients that should be redirected to that site.</p>
+<p>RESS allows you to specify alternate versions of your rails app. You can add as many alternate versions as you need (eg one for tablets, one for phones etc). Each alternate version has two mandatory attributes: 1) A subdomain under which the version will be served and 2) a media query that describes the type of clients that should be redirected to that version.</p>
 
 <p>Once registered, RESS provides a helper method called <code>ress_anotation_tags</code> that can be used to add annotations to the <code>&lt;head&gt;</code> of your document. These tags describe where the alternate versions of your site are located and which devices should be redirected to them.</p>
 
@@ -152,7 +152,7 @@
 
 <h3>3. Server-side component optimization:</h3>
 
-<p>When a request comes in to your application via one of the alternate version&#8217;s subdomains, RESS prepends a path to the list of view paths available for the controller handling that request. Any templates, partials or layouts available in the prepended view path take precedence over those in <code>app/views</code>. This allows you to overload individual templates for any version of your site.</p>
+<p>When a request comes in to your application via one of the alternate version&#8217;s subdomains, RESS prepends a path to the list of view paths available for the controller handling that request. Each alternate version has its own views folder that can be configured to exist anywhere in your application&#8217;s file structure. Any templates, partials or layouts available in the prepended view path take precedence over those in <code>app/views</code>. This allows you to overload individual templates for any version of your site.</p>
 
 <p>For example, if you wanted to customize the signup form for the <code>mobile</code> version of your app, you would simply need to create a new partial called <code>app/mobile_views/users/new.html.erb</code> with custom markup. If you do not provide a mobile template, Rails will fall back to <code>app/views</code>, as normal.</p>
 
