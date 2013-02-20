@@ -40,9 +40,13 @@ body {
   width: auto;
 }
 
-article.post {
+article .entry-content {
   h1, h2, h3, h4 {
     // font-family: "Georgia", "Times New Roman", serif;
-    // font-weight: normal;
+    font-weight: bold;
+  }
+
+  h3 {
+    font-size: 1.0em;
   }
 }
