@@ -4,7 +4,7 @@
   <title><![CDATA[Matthew Robertson]]></title>
   <link href="http://matthewrobertson.org/atom.xml" rel="self"/>
   <link href="http://matthewrobertson.org/"/>
-  <updated>2013-02-19T13:53:39-08:00</updated>
+  <updated>2013-02-19T16:19:05-08:00</updated>
   <id>http://matthewrobertson.org/</id>
   <author>
     <name><![CDATA[Matthew Robertson]]></name>
@@ -18,21 +18,35 @@
     <link href="http://matthewrobertson.org/blog/2013/02/15/introducing-ress/"/>
     <updated>2013-02-15T01:45:00-08:00</updated>
     <id>http://matthewrobertson.org/blog/2013/02/15/introducing-ress</id>
-    <content type="html"><![CDATA[<p>As the diversity of internet connected devices increases, the challenge of building web applications that work well across all of them is becoming both more difficult and more important. Currently, there is a shortage of great ideas in the Rails community about how best to tackle this problem. Most developers lean heavily on one of two approaches: creating a responsive design using CSS media queries or serving a custom UI based on user agent string detection<!-- more -->. But, mobile optimization is a complex problem that involves configuring many aspects of a site, so it is best not to limit yourself to a purely client side or server side approach. I have created <a href="https://github.com/matthewrobertson/ress">a gem</a> that attempts to combine the strengths of client side feature detection, with the flexibility of server side configuration while staying in line with Google’s best practices for SEO and web caching.</p>
+    <content type="html"><![CDATA[<h2>TL;DR</h2>
 
-<p>Responsive design is becoming dogma for the best way to build mobile friendly websites. While, CSS media queries are great for tweaking the layout of an HTML page to better conform to a variety of screen sizes, they fall short of being the one and only tool needed to provide a truly mobile optimized user experience. There is more to consider than screen size alone: less powerful CPUs, slower network connections and touch oriented interfaces all need to be addressed. When all these limitations are taken into consideration, it is obvious that adding more CSS for the user to download and interpret is not a silver bullet solution.</p>
+<p>I have created <a href="https://github.com/matthewrobertson/ress">a gem</a> that provides a strategy for building mobile optimized Rails applications by combining the strengths of client-side feature detection with the flexibility of server-side configuration, and respects Google’s best practices for SEO and web-caching.<!-- more --></p>
 
-<p>While less popular, server side solutions tend to be more flexible and capable in terms of the device limitations that can be addressed. The approach of pushing an alternate UI based on the user agent string has been demonstrated in a <a href="http://railscasts.com/episodes/199-mobile-devices">Railscast episode</a> and implemented in the <a href="https://github.com/brendanlim/mobile-fu">Mobile Fu gem</a>. Unfortunately, both of these solutions suffer from some serious flaws. First of all, serving different versions of a web page at the same URL is not RESTful and can have some unwanted consequences (eg caching and SEO). Furthermore, user agent detection can be inaccurate and requires constant maintenance as new devices and software comes to market. From an implementation perspective, the practice of aliasing a mime type and explicitly setting <code>request.format</code> makes it <a href="https://github.com/rails/rails/issues/3855">difficult to share templates</a> between the mobile and canonical versions of the site.</p>
+<h2>Background</h2>
+
+<p>As the diversity of internet-connected devices increases, the challenge of building great web applications that work well on all platforms is becoming more important - and more difficult. Currently, there is a shortage of great ideas in the Rails community about how best to tackle this problem.  Most developers lean heavily on one of two approaches: creating a responsive design using CSS media queries, or serving a custom UI based on user agent string detection. However, mobile optimization is a complex problem that involves configuring many aspects of a site, so it is best not to limit yourself to a purely client side or server side approach.</p>
+
+<h3>Responsive Design</h3>
+
+<p>Responsive design is quickly becoming dogma for the best way to build mobile-friendly websites. While CSS media queries are great for tweaking the layout of HTML on different devices, when used alone, they fall short of being the one and only tool needed to provide a truly optimized mobile user experience. This is because there is much more to consider than just screen size. Less powerful CPUs, slower network connections and touch-oriented interfaces all impact the performance and user experience of your site on mobile devices. When all these limitations are taken into consideration, it is obvious that adding more CSS for the user to download and interpret is not a silver bullet.</p>
+
+<h3>Detecting user-agent strings on the server</h3>
+
+<p>While less popular, server-side solutions tend to be more flexible and capable of addressing device limitations. The approach of pushing an alternate UI, based on the user agent string, has been demonstrated in a <a href="http://railscasts.com/episodes/199-mobile-devices">Railscast episode</a> and implemented in the <a href="https://github.com/brendanlim/mobile-fu">Mobile Fu gem</a>. Unfortunately, both of these solutions suffer from some serious flaws.</p>
+
+<p>First, serving different versions of a web page at the same URL is not RESTful and can have unwanted consequences (eg caching and SEO). Furthermore, user agent detection can be inaccurate and requires constant maintenance as new devices and software come to market. From an implementation perspective, the practice of aliasing a mime type and explicitly setting <code>request.format</code> makes it <a href="https://github.com/rails/rails/issues/3855">difficult to share templates</a> between the mobile and canonical versions of a site.</p>
 
 <h2>A Better Solution</h2>
 
-<p>Server side approaches and responsive design each have their own strengths and weaknesses. I have come up with a strategy that attempts to combine the strengths of both and packaged it up as gem called RESS. The gem provides three major features that you can use while optimizing your application for mobile platforms.</p>
+<p>Responsive design and server-side approaches each have their own strengths and weaknesses. I have developed an approach that attempts to combine the strengths of both and packaged it as a <a href="https://github.com/matthewrobertson/ress">gem called RESS</a>. This gem provides three major features that you can use to optimize your application for different platforms.</p>
 
-<h2>1. Annotation of mobile versions of your app:</h2>
+<h3>1. Annotating mobile versions of your app:</h3>
 
-<p>RESS allows you to specify alternate versions of your rails app. Each alternate version has two mandatory attributes: a subdomain under which the version will be served and a media query that describes the type of clients that should be redirected to that site. Once registered, RESS provides a helper method called <code>ress_anotation_tags</code> that should be used to add annotations to the <code>&lt;head&gt;</code> of your document. These tags describe where the alternate versions are located and which devices should be redirected to them.</p>
+<p>RESS allows you to specify alternate versions of your rails app. Each alternate version has two mandatory attributes: 1) A subdomain under which the version will be served and 2) a media query that describes the type of clients that should be redirected to that site.</p>
 
-<p>For example, a typical alternate version for a mobile site might include a tag like this:</p>
+<p>Once registered, RESS provides a helper method called <code>ress_anotation_tags</code> that can be used to add annotations to the <code>&lt;head&gt;</code> of your document. These tags describe where the alternate versions of your site are located and which devices should be redirected to them.</p>
+
+<p>For example, an alternate version of a mobile site might include a tag like this:</p>
 
 <figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
 </pre></td><td class='code'><pre><code class='html'><span class='line'><span class="nt">&lt;link</span> <span class="na">rel=</span><span class="s">&quot;alternate&quot;</span> <span class="na">media=</span><span class="s">&quot;only screen and (max-width: 640px)&quot;</span> <span class="na">href=</span><span class="s">&quot;http://m.example.com/page-1&quot;</span> <span class="nt">&gt;</span>
@@ -48,15 +62,19 @@
 
 <p>These annotations conform to SEO best practices for mobile optimized websites <a href="https://developers.google.com/webmasters/smartphone-sites/details">as documented by Google</a>.</p>
 
-<h2>2. Client side feature detection and redirects:</h2>
+<h3>2. Client-side feature detection and redirects:</h3>
 
-<p>As an alternative to redirecting users based on user agent string matching, ress provides a  mechanism to redirect users based on feature detection that is performed on the client side. When a request comes into your site, the javascript included with RESS will parse all of the <code>[rel="alternate"]</code> links in your markup, and evaluate their media queries to determine if there is an alternate version available that matches the client. If there is, the user is redirected to the url for that version. The idea for this style of client side redirection (and much of the implementation) was adapted from the <a href="https://github.com/borismus/device.js">devicejs library</a> by Boris Smus.</p>
+<p>As an alternative to redirecting users based on user agent string matching, RESS provides a mechanism to redirect users based on client-side feature detection. When a request comes into your site, the javascript included with RESS will parse all of the <code>[rel="alternate"]</code> links in your markup and evaluate their associated media queries to determine if there is an alternate version that matches the client. If there is, the user is redirected to the url for that version of your application.</p>
 
-<h2>3. Server side progressive enhancement:</h2>
+<p>The idea for this style of client-side redirection (and much of the implementation) was adapted from the <a href="https://github.com/borismus/device.js">devicejs library</a> by Boris Smus.</p>
 
-<p>When RESS detects that a request is coming in to one of the alternate versions of your application (via the subdomain), it prepends a path to the list of view paths available for the controller handling the request. Any templates, partials or layouts available in the prepended view path take precedence over those in <code>app/views</code> allowing you to overload individual templates for any version of your site. For example, if I wanted to customize the signup form for the <code>mobile</code> version of my app I would simply need to create a new partial called <code>app/mobile_views/users/new.html.erb</code> with my custom markup. If you do not provide a mobile template, Rails will fall back to <code>app/views</code> as normal.</p>
+<h3>3. Server-side progressive enhancement:</h3>
 
-<p>For smaller tweeks RESS also creates view helpers and controller methods for detecting which version of the app the request has come into. eg:</p>
+<p>When RESS detects that a request is coming in to one of the alternate versions of your application (via the subdomain), it prepends a path to the list of view paths available for the controller handling the request. Any templates, partials or layouts available in the prepended view path take precedence over those in <code>app/views</code>. This allows you to overload individual templates for any version of your site.</p>
+
+<p>For example, if you wanted to customize the signup form for the <code>mobile</code> version of your app, you would simply need to create a new partial called <code>app/mobile_views/users/new.html.erb</code> with custom markup. If you do not provide a mobile template, Rails will fall back to <code>app/views</code>, as normal.</p>
+
+<p>For smaller tweaks, RESS creates view helpers and controller methods for detecting which version of the app the request has come into. eg:</p>
 
 <figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
 <span class='line-number'>2</span>
@@ -73,11 +91,13 @@
 
 <h2>Caveats</h2>
 
-<p>RESS may not be a great for a fit for all applications but, I have done my best to implement the features in an a la carte manner so that you can pick and chose what you want. For example, if you don’t want to suffer the performance costs of client side redirects, you can leave the <code>ress.js</code> file out of your application and do your own server side user agent redirects, but keep the <code>ress_annotation_tags</code> to stay inline with Google’s SEO best practices.</p>
+<p>RESS may not be a great for a fit for all applications but I have done my best to implement the features in an a la carte manner so that you can pick and chose which are best for you. For example, if you don’t want to suffer the performance costs of client-side redirects, you can leave the <code>ress.js</code> file out of your application and do your own server-side user agent redirects. But keep the <code>ress_annotation_tags</code> to stay consistent with Google’s SEO best practices.</p>
 
-<p>I am keen to hear your thoughts, criticism and feature requests. Feel free to add them to the comments section below, or visit the project <a href="https://github.com/matthewrobertson/ress">on github</a> and create issues.</p>
+<h2>Feedback Welcome!</h2>
 
-<h2>References</h2>
+<p>I welcome your thoughts, criticisms and feature requests. Feel free to add them to the comments section below, or visit the project <a href="https://github.com/matthewrobertson/ress">on github</a> and create issues in the issue tracker.</p>
+
+<h3>References</h3>
 
 <ul>
 <li><a href="http://www.html5rocks.com/en/mobile/cross-device/">devicejs</a> <a href="https://github.com/borismus/device.js">github</a></li>
