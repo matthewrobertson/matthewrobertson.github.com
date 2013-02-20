@@ -8,7 +8,7 @@ categories: Rails Ruby Javascript Mobile RESS
 
 ## TL;DR
 
-I have created [a gem](https://github.com/matthewrobertson/ress) that provides a strategy for building mobile optimized Rails applications by combining the strengths of client-side feature detection with the flexibility of server-side configuration, and respects Google’s best practices for SEO and web-caching.<!-- more -->
+I have created [a gem](https://github.com/matthewrobertson/ress) that provides a strategy for building mobile optimized Rails applications by combining the strengths of client-side feature detection with the flexibility of server-side component optimization, and respects Google’s best practices for SEO and web-caching.<!-- more -->
 
 ## Background
 
@@ -26,7 +26,9 @@ First, serving different versions of a web page at the same URL is not RESTful a
 
 ## A Better Solution
 
-Responsive design and server-side approaches each have their own strengths and weaknesses. While working on this problem at [Medeo](https://www.medeo.ca/), I developed an approach that attempts to combine the strengths of both and packaged it as a [gem called RESS](https://github.com/matthewrobertson/ress). This gem provides three major features that you can use to optimize your application for different platforms.
+Responsive design and server-side approaches each have their own pros and cons. Luke Wroblewski wrote a [nice article](http://www.lukew.com/ff/entry.asp?1392) in which he describes a system that combines the strengths of responsive web design with server side component optimization. It inspired me to implement a similar system for the Rails framework and package it up as a [gem called RESS](https://github.com/matthewrobertson/ress). Currently, we are using RESS in the app we are building at [Medeo](https://www.medeo.ca/) and have been pleased with the results.
+
+RESS provides three major features that you can use to optimize your application for different platforms:
 
 ### 1. Annotating mobile versions of your app:
 
@@ -53,13 +55,13 @@ As an alternative to redirecting users based on user agent string matching, RESS
 
 The idea for this style of client-side redirection (and much of the implementation) was adapted from the [devicejs library](https://github.com/borismus/device.js) by Boris Smus.
 
-### 3. Server-side progressive enhancement:
+### 3. Server-side component optimization:
 
-When RESS detects that a request is coming in to one of the alternate versions of your application (via the subdomain), it prepends a path to the list of view paths available for the controller handling the request. Any templates, partials or layouts available in the prepended view path take precedence over those in `app/views`. This allows you to overload individual templates for any version of your site.
+When a request comes in to your application via one of the alternate version's subdomains, RESS prepends a path to the list of view paths available for the controller handling that request. Any templates, partials or layouts available in the prepended view path take precedence over those in `app/views`. This allows you to overload individual templates for any version of your site.
 
 For example, if you wanted to customize the signup form for the `mobile` version of your app, you would simply need to create a new partial called `app/mobile_views/users/new.html.erb` with custom markup. If you do not provide a mobile template, Rails will fall back to `app/views`, as normal.
 
-For smaller tweaks, RESS creates view helpers and controller methods for detecting which version of the app the request has come into. eg:
+For smaller tweaks, RESS creates view helpers and controller methods for detecting which alternate version of the app has been requested. eg:
 
 ```erb
 <% if mobile_request? %>
@@ -81,5 +83,5 @@ I welcome your thoughts, criticisms and feature requests. Feel free to add them 
 
 - [devicejs](http://www.html5rocks.com/en/mobile/cross-device/) [github](https://github.com/borismus/device.js)
 - [Building Smartphone-Optimized Websites](https://developers.google.com/webmasters/smartphone-sites/details)
-- [RESS: Responsive Design + Server Side Components](http://www.lukew.com/ff/entry.asp?1392) (inspiration for the name RESS)
+- [RESS: Responsive Design + Server Side Components](http://www.lukew.com/ff/entry.asp?1392)
 - [Response Design Missing the Point](http://bradfrostweb.com/blog/web/responsive-web-design-missing-the-point/)
