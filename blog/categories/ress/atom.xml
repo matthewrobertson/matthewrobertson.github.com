@@ -4,7 +4,7 @@
   <title><![CDATA[Category: RESS | Matthew Robertson]]></title>
   <link href="http://matthewrobertson.org/blog/categories/ress/atom.xml" rel="self"/>
   <link href="http://matthewrobertson.org/"/>
-  <updated>2013-02-19T17:04:33-08:00</updated>
+  <updated>2013-02-20T11:50:53-08:00</updated>
   <id>http://matthewrobertson.org/</id>
   <author>
     <name><![CDATA[Matthew Robertson]]></name>
@@ -20,7 +20,7 @@
     <id>http://matthewrobertson.org/blog/2013/02/15/introducing-ress</id>
     <content type="html"><![CDATA[<h2>TL;DR</h2>
 
-<p>I have created <a href="https://github.com/matthewrobertson/ress">a gem</a> that provides a strategy for building mobile optimized Rails applications by combining the strengths of client-side feature detection with the flexibility of server-side configuration, and respects Google’s best practices for SEO and web-caching.<!-- more --></p>
+<p>I have created <a href="https://github.com/matthewrobertson/ress">a gem</a> that provides a strategy for building mobile optimized Rails applications by combining the strengths of client-side feature detection with the flexibility of server-side component optimization, and respects Google’s best practices for SEO and web-caching.<!-- more --></p>
 
 <h2>Background</h2>
 
@@ -38,7 +38,9 @@
 
 <h2>A Better Solution</h2>
 
-<p>Responsive design and server-side approaches each have their own strengths and weaknesses. While working on this problem at <a href="https://www.medeo.ca/">Medeo</a>, I developed an approach that attempts to combine the strengths of both and packaged it as a <a href="https://github.com/matthewrobertson/ress">gem called RESS</a>. This gem provides three major features that you can use to optimize your application for different platforms.</p>
+<p>Responsive design and server-side approaches each have their own pros and cons. Luke Wroblewski wrote a <a href="http://www.lukew.com/ff/entry.asp?1392">nice article</a> in which he describes a system that combines the strengths of responsive web design with server side component optimization. It inspired me to implement a similar system for the Rails framework and package it up as a <a href="https://github.com/matthewrobertson/ress">gem called RESS</a>. Currently, we are using RESS in the app we are building at <a href="https://www.medeo.ca/">Medeo</a> and have been pleased with the results.</p>
+
+<p>RESS provides three major features that you can use to optimize your application for different platforms:</p>
 
 <h3>1. Annotating mobile versions of your app:</h3>
 
@@ -65,13 +67,13 @@ These annotations conform to SEO best practices for mobile optimized websites <a
 
 <p>The idea for this style of client-side redirection (and much of the implementation) was adapted from the <a href="https://github.com/borismus/device.js">devicejs library</a> by Boris Smus.</p>
 
-<h3>3. Server-side progressive enhancement:</h3>
+<h3>3. Server-side component optimization:</h3>
 
-<p>When RESS detects that a request is coming in to one of the alternate versions of your application (via the subdomain), it prepends a path to the list of view paths available for the controller handling the request. Any templates, partials or layouts available in the prepended view path take precedence over those in <code>app/views</code>. This allows you to overload individual templates for any version of your site.</p>
+<p>When a request comes in to your application via one of the alternate version's subdomains, RESS prepends a path to the list of view paths available for the controller handling that request. Any templates, partials or layouts available in the prepended view path take precedence over those in <code>app/views</code>. This allows you to overload individual templates for any version of your site.</p>
 
 <p>For example, if you wanted to customize the signup form for the <code>mobile</code> version of your app, you would simply need to create a new partial called <code>app/mobile_views/users/new.html.erb</code> with custom markup. If you do not provide a mobile template, Rails will fall back to <code>app/views</code>, as normal.</p>
 
-<p>For smaller tweaks, RESS creates view helpers and controller methods for detecting which version of the app the request has come into. eg:</p>
+<p>For smaller tweaks, RESS creates view helpers and controller methods for detecting which alternate version of the app has been requested. eg:</p>
 
 <p><code>erb
 &lt;% if mobile_request? %&gt;
@@ -94,7 +96,7 @@ These annotations conform to SEO best practices for mobile optimized websites <a
 <ul>
 <li><a href="http://www.html5rocks.com/en/mobile/cross-device/">devicejs</a> <a href="https://github.com/borismus/device.js">github</a></li>
 <li><a href="https://developers.google.com/webmasters/smartphone-sites/details">Building Smartphone-Optimized Websites</a></li>
-<li><a href="http://www.lukew.com/ff/entry.asp?1392">RESS: Responsive Design + Server Side Components</a> (inspiration for the name RESS)</li>
+<li><a href="http://www.lukew.com/ff/entry.asp?1392">RESS: Responsive Design + Server Side Components</a></li>
 <li><a href="http://bradfrostweb.com/blog/web/responsive-web-design-missing-the-point/">Response Design Missing the Point</a></li>
 </ul>
 
