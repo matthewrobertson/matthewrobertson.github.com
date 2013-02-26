@@ -81,6 +81,7 @@ I welcome your thoughts, criticisms and feature requests. Feel free to add them 
 
 ### References
 
+- [The RESS gem github repository](https://github.com/matthewrobertson/ress)
 - [devicejs](http://www.html5rocks.com/en/mobile/cross-device/) [github](https://github.com/borismus/device.js)
 - [Building Smartphone-Optimized Websites](https://developers.google.com/webmasters/smartphone-sites/details)
 - [RESS: Responsive Design + Server Side Components](http://www.lukew.com/ff/entry.asp?1392)
