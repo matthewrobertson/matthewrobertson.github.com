@@ -12,7 +12,7 @@ The Medeo app passes data between the backend Rails code and client side Javascr
 2. through websockets
 3. in rendered html pages via `data` attributes
 
-This often meant reusing serialization code in different parts of the app often in different contexts. For this reason none of the popular template based JSON DSLs ([RABL](https://github.com/nesquena/rabl), [jBuilder](https://github.com/rails/jbuilder)) really fit our use case. [`ActiveModel::Serializers'](https://github.com/rails-api/active_model_serializers) was much closer to what we wanted but I was put off by its complexity and "magic". Eventually we ended up rolling our own simple, elegant solution that is serving us nicely.
+This often meant reusing serialization code in different parts of the app often in different contexts. For this reason none of the popular template based JSON DSLs ([RABL](https://github.com/nesquena/rabl), [jBuilder](https://github.com/rails/jbuilder)) really fit our use case. [`ActiveModel::Serializers`](https://github.com/rails-api/active_model_serializers) was much closer to what we wanted but I was put off by its complexity and "magic". Eventually we ended up rolling our own simple, elegant solution that is serving us nicely.
 
 To explain how we came up with this solution and how it works lets start with a simple example: a blog application that allows commenting. Comments are written by users so the app may have some `ActiveRecord` models that look something like this:
 
