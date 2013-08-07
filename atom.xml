@@ -4,7 +4,7 @@
   <title><![CDATA[Matthew Robertson]]></title>
   <link href="http://matthewrobertson.org/atom.xml" rel="self"/>
   <link href="http://matthewrobertson.org/"/>
-  <updated>2013-02-20T12:37:53-08:00</updated>
+  <updated>2013-08-06T22:38:43-07:00</updated>
   <id>http://matthewrobertson.org/</id>
   <author>
     <name><![CDATA[Matthew Robertson]]></name>
@@ -12,6 +12,299 @@
   </author>
   <generator uri="http://octopress.org/">Octopress</generator>
 
+  
+  <entry>
+    <title type="html"><![CDATA[ActiveRecord Serializers From Scratch]]></title>
+    <link href="http://matthewrobertson.org/blog/2013/07/26/active-record-serializers-from-scratch/"/>
+    <updated>2013-07-26T11:38:00-07:00</updated>
+    <id>http://matthewrobertson.org/blog/2013/07/26/active-record-serializers-from-scratch</id>
+    <content type="html"><![CDATA[<p>In this post I am going to go over how you can roll your own JSON serialization solution to use in a rails app in less than 40 lines of code. The idea makes use of basic object oriented techniques (inheritance and hook methods) to leverage the serialization functionality provided by Rails out of the box.<!-- more --> If you are not interested in the step by step explanation, you can skip to <a href="https://gist.github.com/matthewrobertson/6129035">this gist</a> I created with the fully fleshed out base class and a sample serializer subclass.</p>
+
+<h2>The Why</h2>
+
+<p>The Medeo app passes data between the backend Rails code and client side Javascript as JSON objects in three ways: via AJAX requests, through websockets and in rendered html pages via <code>data</code> attributes. This often means reusing serialization code in different parts of the app in different contexts. For this reason none of the popular template based JSON DSLs (eg <a href="https://github.com/nesquena/rabl">RABL</a>, <a href="https://github.com/rails/jbuilder">jBuilder</a>) really fit our use case. The <a href="https://github.com/rails-api/active_model_serializers"><code>ActiveModel::Serializers</code> gem</a> was much closer to what we wanted but I was put off by its complexity. Eventually we ended up rolling our own simple, elegant solution that is serving us nicely.</p>
+
+<h2>An Example</h2>
+
+<p>To explain how we came up with this solution and how it works lets start with a simple example: a blog application that allows commenting. Comments are written by users so the app may have some <code>ActiveRecord</code> models that look something like this:</p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+<span class='line-number'>7</span>
+<span class='line-number'>8</span>
+<span class='line-number'>9</span>
+<span class='line-number'>10</span>
+<span class='line-number'>11</span>
+<span class='line-number'>12</span>
+<span class='line-number'>13</span>
+</pre></td><td class='code'><pre><code class='ruby'><span class='line'><span class="k">class</span> <span class="nc">Comment</span> <span class="o">&lt;</span> <span class="no">ActiveRecord</span><span class="o">::</span><span class="no">Base</span>
+</span><span class='line'>  <span class="n">attr_accessible</span> <span class="ss">:body</span>
+</span><span class='line'>  <span class="n">belongs_to</span> <span class="ss">:user</span>
+</span><span class='line'>
+</span><span class='line'>  <span class="k">def</span> <span class="nf">html_body</span>
+</span><span class='line'>      <span class="s2">&quot;&lt;p&gt;</span><span class="si">#{</span><span class="n">body</span><span class="si">}</span><span class="s2">&lt;/p&gt;&quot;</span>
+</span><span class='line'>  <span class="k">end</span>
+</span><span class='line'><span class="k">end</span>
+</span><span class='line'>
+</span><span class='line'><span class="k">class</span> <span class="nc">User</span> <span class="o">&lt;</span> <span class="no">ActiveRecord</span><span class="o">::</span><span class="no">Base</span>
+</span><span class='line'>  <span class="n">attr_accessible</span> <span class="ss">:name</span>
+</span><span class='line'>  <span class="n">has_many</span> <span class="ss">:comments</span>
+</span><span class='line'><span class="k">end</span>
+</span></code></pre></td></tr></table></div></figure>
+
+
+<h2>The Basic Idea</h2>
+
+<p>In order to create comments using AJAX and render our UI on the client side we need to return a JSON response that is composed of the comment&#8217;s attributes as well as its user&#8217;s attributes. This can be done easily using the <code>as_json</code> method provided by Rails&#8217; <code>Serialization</code> module. If you take a look at the <a href="http://api.rubyonrails.org/classes/ActiveModel/Serializers/JSON.html">documenation</a>, you will see that it accepts an optional hash that can be used to shape the format of the returned JSON. The specific options that we care about are the following:</p>
+
+<ul>
+<li><code>:only</code> to limit the attributes included in the json</li>
+<li><code>:methods</code> to include the result of some method calls on the model</li>
+<li><code>:include</code> to include associations</li>
+</ul>
+
+
+<p>Using these options, we can get the JSON we want as follows:</p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+<span class='line-number'>7</span>
+<span class='line-number'>8</span>
+<span class='line-number'>9</span>
+<span class='line-number'>10</span>
+</pre></td><td class='code'><pre><code class='ruby'><span class='line'><span class="o">&gt;&gt;&gt;</span> <span class="vi">@comment</span><span class="o">.</span><span class="n">as_json</span> <span class="ss">:only</span> <span class="o">=&gt;</span> <span class="sx">%w(id created_at)</span><span class="p">,</span> <span class="ss">:methods</span> <span class="o">=&gt;</span> <span class="sx">%w(html_body)</span><span class="p">,</span> <span class="ss">:includes</span> <span class="o">=&gt;</span> <span class="p">{</span> <span class="s1">&#39;user&#39;</span> <span class="o">=&gt;</span> <span class="p">{</span> <span class="s1">&#39;only&#39;</span> <span class="o">=&gt;</span> <span class="sx">%w(id name)</span> <span class="p">}</span> <span class="p">}</span>
+</span><span class='line'><span class="o">=&gt;</span> <span class="p">{</span>
+</span><span class='line'>  <span class="s2">&quot;id&quot;</span><span class="o">=&gt;</span><span class="mi">1</span><span class="p">,</span>
+</span><span class='line'>  <span class="s2">&quot;html_body&quot;</span><span class="o">=&gt;</span><span class="s2">&quot;lorem ipsum dolor...&quot;</span><span class="p">,</span>
+</span><span class='line'>  <span class="s2">&quot;created_at&quot;</span><span class="o">=&gt;</span><span class="s2">&quot;2013-07-26T10:38:47-07:00&quot;</span><span class="p">,</span>
+</span><span class='line'>  <span class="s2">&quot;user&quot;</span><span class="o">=&gt;</span><span class="p">{</span>
+</span><span class='line'>      <span class="s2">&quot;id&quot;</span><span class="o">=&gt;</span><span class="mi">1</span><span class="p">,</span>
+</span><span class='line'>      <span class="s2">&quot;name&quot;</span><span class="o">=&gt;</span><span class="s2">&quot;Matthew&quot;</span>
+</span><span class='line'>  <span class="p">}</span>
+</span><span class='line'><span class="p">}</span>
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p>This is the result we wanted but it is still not quite and ideal solution. The <code>as_json</code> method call is definitely a bit hairy.If we wanted to reuse this serialization code would have copy all of the arguments we passed to <code>as_json</code> around the code base. This would be a nightmare if we ever needed to change things. The natural way to clean this up is to create a class to encapsulate the responsibility of the serializing comments:</p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+<span class='line-number'>7</span>
+<span class='line-number'>8</span>
+<span class='line-number'>9</span>
+<span class='line-number'>10</span>
+<span class='line-number'>11</span>
+<span class='line-number'>12</span>
+<span class='line-number'>13</span>
+<span class='line-number'>14</span>
+<span class='line-number'>15</span>
+<span class='line-number'>16</span>
+<span class='line-number'>17</span>
+<span class='line-number'>18</span>
+<span class='line-number'>19</span>
+<span class='line-number'>20</span>
+<span class='line-number'>21</span>
+<span class='line-number'>22</span>
+<span class='line-number'>23</span>
+<span class='line-number'>24</span>
+<span class='line-number'>25</span>
+</pre></td><td class='code'><pre><code class='ruby'><span class='line'><span class="k">class</span> <span class="nc">CommentSerializer</span>
+</span><span class='line'>  <span class="kp">attr_reader</span> <span class="ss">:comment</span>
+</span><span class='line'>
+</span><span class='line'>  <span class="k">def</span> <span class="nf">initialize</span><span class="p">(</span><span class="n">comment</span><span class="p">)</span>
+</span><span class='line'>      <span class="vi">@comment</span> <span class="o">=</span> <span class="n">comment</span>
+</span><span class='line'>  <span class="k">end</span>
+</span><span class='line'>
+</span><span class='line'>  <span class="k">def</span> <span class="nf">as_json</span><span class="p">(</span><span class="n">options</span><span class="o">=</span><span class="p">{})</span>
+</span><span class='line'>      <span class="n">comment</span><span class="o">.</span><span class="n">as_json</span><span class="p">(</span><span class="ss">:only</span> <span class="o">=&gt;</span> <span class="n">attributes</span><span class="p">,</span> <span class="ss">:methods</span> <span class="o">=&gt;</span> <span class="nb">methods</span><span class="p">,</span> <span class="ss">:includes</span> <span class="o">=&gt;</span> <span class="n">includes</span><span class="p">)</span><span class="o">.</span><span class="n">merge</span><span class="p">(</span><span class="n">options</span><span class="p">)</span>
+</span><span class='line'>  <span class="k">end</span>
+</span><span class='line'>
+</span><span class='line'>  <span class="kp">private</span>
+</span><span class='line'>
+</span><span class='line'>      <span class="k">def</span> <span class="nf">attributes</span>
+</span><span class='line'>          <span class="sx">%w(id created_at)</span>
+</span><span class='line'>      <span class="k">end</span>
+</span><span class='line'>
+</span><span class='line'>      <span class="k">def</span> <span class="nf">includes</span>
+</span><span class='line'>          <span class="p">{</span> <span class="s1">&#39;user&#39;</span> <span class="o">=&gt;</span> <span class="p">{</span> <span class="s1">&#39;only&#39;</span> <span class="o">=&gt;</span> <span class="sx">%w(id name)</span> <span class="p">}</span> <span class="p">}</span>
+</span><span class='line'>      <span class="k">end</span>
+</span><span class='line'>
+</span><span class='line'>      <span class="k">def</span> <span class="nf">methods</span>
+</span><span class='line'>          <span class="sx">%w(html_body)</span>
+</span><span class='line'>      <span class="k">end</span>
+</span><span class='line'><span class="k">end</span>
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p>Now we can serialize comments by creating an instance of our serializer class: <code>CommentSerializer.new(@comment).as_json</code>. This has the added benefit of enabling us to easily test our serialization code in isolation. I personally think testing this type of serialization code is extremely important as it enforces the interface that connects your rails app to your javascript code.</p>
+
+<h2>A Reusable Pattern</h2>
+
+<p>Eventually we are going to want to serialize some models other than comments and it would be nice to reuse this pattern in these instances. One way to do this is to move the generic serialization bits into an abstract base class:</p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+<span class='line-number'>7</span>
+<span class='line-number'>8</span>
+<span class='line-number'>9</span>
+<span class='line-number'>10</span>
+<span class='line-number'>11</span>
+<span class='line-number'>12</span>
+<span class='line-number'>13</span>
+<span class='line-number'>14</span>
+<span class='line-number'>15</span>
+<span class='line-number'>16</span>
+<span class='line-number'>17</span>
+</pre></td><td class='code'><pre><code class='ruby'><span class='line'><span class="k">class</span> <span class="nc">BaseSerializer</span>
+</span><span class='line'>  <span class="kp">attr_reader</span> <span class="ss">:serialized_object</span>
+</span><span class='line'>
+</span><span class='line'>  <span class="k">def</span> <span class="nf">initialize</span><span class="p">(</span><span class="n">serialized_object</span><span class="p">)</span>
+</span><span class='line'>      <span class="vi">@serialized_object</span> <span class="o">=</span> <span class="n">serialized_object</span>
+</span><span class='line'>  <span class="k">end</span>
+</span><span class='line'>
+</span><span class='line'>  <span class="k">def</span> <span class="nf">as_json</span><span class="p">(</span><span class="n">options</span><span class="o">=</span><span class="p">{})</span>
+</span><span class='line'>      <span class="n">serialized_object</span><span class="o">.</span><span class="n">as_json</span><span class="p">(</span><span class="ss">:only</span> <span class="o">=&gt;</span> <span class="n">attributes</span><span class="p">,</span> <span class="ss">:methods</span> <span class="o">=&gt;</span> <span class="nb">methods</span><span class="p">,</span> <span class="ss">:includes</span> <span class="o">=&gt;</span> <span class="n">includes</span><span class="p">)</span><span class="o">.</span><span class="n">merge</span><span class="p">(</span><span class="n">options</span><span class="p">)</span>
+</span><span class='line'>  <span class="k">end</span>
+</span><span class='line'>
+</span><span class='line'>  <span class="kp">private</span>
+</span><span class='line'>
+</span><span class='line'>      <span class="k">def</span> <span class="nf">attributes</span> <span class="p">;</span> <span class="k">end</span>
+</span><span class='line'>      <span class="k">def</span> <span class="nf">includes</span>   <span class="p">;</span> <span class="k">end</span>
+</span><span class='line'>      <span class="k">def</span> <span class="nf">methods</span>    <span class="p">;</span> <span class="k">end</span>
+</span><span class='line'><span class="k">end</span>
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p>Now we can create serializers by simply inheriting from the <code>BaseSerializer</code> class and overriding the <code>attribute</code>, <code>includes</code> and <code>methods</code> hook methods. Making use of this base class, our <code>CommentSerializer</code> ends up looking something like this:</p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+<span class='line-number'>7</span>
+<span class='line-number'>8</span>
+<span class='line-number'>9</span>
+<span class='line-number'>10</span>
+<span class='line-number'>11</span>
+<span class='line-number'>12</span>
+<span class='line-number'>13</span>
+<span class='line-number'>14</span>
+<span class='line-number'>15</span>
+<span class='line-number'>16</span>
+</pre></td><td class='code'><pre><code class='ruby'><span class='line'><span class="k">class</span> <span class="nc">CommentSerializer</span> <span class="o">&lt;</span> <span class="no">BaseSerializer</span>
+</span><span class='line'>
+</span><span class='line'>  <span class="kp">private</span>
+</span><span class='line'>
+</span><span class='line'>      <span class="k">def</span> <span class="nf">attributes</span>
+</span><span class='line'>          <span class="sx">%w(id created_at)</span>
+</span><span class='line'>      <span class="k">end</span>
+</span><span class='line'>
+</span><span class='line'>      <span class="k">def</span> <span class="nf">includes</span>
+</span><span class='line'>          <span class="p">{</span> <span class="s1">&#39;user&#39;</span> <span class="o">=&gt;</span> <span class="p">{</span> <span class="s1">&#39;only&#39;</span> <span class="o">=&gt;</span> <span class="sx">%w(id name)</span> <span class="p">}</span> <span class="p">}</span>
+</span><span class='line'>      <span class="k">end</span>
+</span><span class='line'>
+</span><span class='line'>      <span class="k">def</span> <span class="nf">methods</span>
+</span><span class='line'>          <span class="sx">%w(html_body)</span>
+</span><span class='line'>      <span class="k">end</span>
+</span><span class='line'><span class="k">end</span>
+</span></code></pre></td></tr></table></div></figure>
+
+
+<h1>More Complex JSON Attributes</h1>
+
+<p>So far our solution is confined only to attributes, methods and associations defined inside of the class we are serializing. Obviously it would be nice if we could lift this constraint in order to create more complex JSON without packing our model full of methods that don&#8217;t belong in it. One requirement that I come up against often is to include resource URLs in JSON responses. To do this we can simply include the Rails URL helpers in our base class, and then use them to augment the return value of a call to <code>super</code> from our derived class:</p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+<span class='line-number'>7</span>
+<span class='line-number'>8</span>
+<span class='line-number'>9</span>
+<span class='line-number'>10</span>
+<span class='line-number'>11</span>
+<span class='line-number'>12</span>
+<span class='line-number'>13</span>
+<span class='line-number'>14</span>
+</pre></td><td class='code'><pre><code class='ruby'><span class='line'><span class="k">class</span> <span class="nc">BaseSerializer</span>
+</span><span class='line'>  <span class="kp">include</span> <span class="no">Rails</span><span class="o">.</span><span class="n">application</span><span class="o">.</span><span class="n">routes</span><span class="o">.</span><span class="n">url_helpers</span>
+</span><span class='line'>  <span class="c1"># everything the same...</span>
+</span><span class='line'><span class="k">end</span>
+</span><span class='line'>
+</span><span class='line'><span class="k">class</span> <span class="nc">CommentSerializer</span> <span class="o">&lt;</span> <span class="no">BaseSerializer</span>
+</span><span class='line'>  <span class="c1"># everything the same...</span>
+</span><span class='line'>
+</span><span class='line'>  <span class="k">def</span> <span class="nf">as_json</span><span class="p">(</span><span class="n">options</span><span class="o">=</span><span class="p">{})</span>
+</span><span class='line'>      <span class="k">super</span><span class="p">(</span><span class="n">options</span><span class="p">)</span><span class="o">.</span><span class="n">tap</span> <span class="k">do</span> <span class="o">|</span><span class="n">c</span><span class="o">|</span>
+</span><span class='line'>          <span class="n">c</span><span class="o">[</span><span class="s1">&#39;link&#39;</span><span class="o">]</span> <span class="o">=</span> <span class="n">user_path</span><span class="p">(</span><span class="n">serialized_object</span><span class="p">)</span>
+</span><span class='line'>      <span class="k">end</span>
+</span><span class='line'>  <span class="k">end</span>
+</span><span class='line'><span class="k">end</span>
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p>If you were paying close attention, you may notice that the above changes actually broke something. Before it provided its own <code>as_json</code> method, our <code>CommentSerializer</code> was capable of serializing both individual comments as well as collections of comments. This is because Rails provides an implementation of <code>as_json</code> for both <code>Array</code>s and <code>ActiveRecord::Relation</code>s that essentially map a collection by calling <code>as_json</code> on each of its members. We can do the same the same thing, by adding a layer of indirection in our <code>as_json</code> method and creating another method that serializes individual instances:</p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+<span class='line-number'>7</span>
+<span class='line-number'>8</span>
+<span class='line-number'>9</span>
+<span class='line-number'>10</span>
+<span class='line-number'>11</span>
+<span class='line-number'>12</span>
+<span class='line-number'>13</span>
+<span class='line-number'>14</span>
+<span class='line-number'>15</span>
+</pre></td><td class='code'><pre><code class='ruby'><span class='line'><span class="k">class</span> <span class="nc">BaseSerializer</span>
+</span><span class='line'>  <span class="c1"># everything the same...</span>
+</span><span class='line'>
+</span><span class='line'>  <span class="k">def</span> <span class="nf">as_json</span><span class="p">(</span><span class="n">options</span><span class="o">=</span><span class="p">{})</span>
+</span><span class='line'>      <span class="k">if</span> <span class="n">serialized_object</span><span class="o">.</span><span class="n">respond_to?</span><span class="p">(</span><span class="ss">:to_ary</span><span class="p">)</span>
+</span><span class='line'>          <span class="n">serialized_object</span><span class="o">.</span><span class="n">map</span> <span class="p">{</span> <span class="o">|</span><span class="n">object</span><span class="o">|</span> <span class="n">serialize</span><span class="p">(</span><span class="n">object</span><span class="p">,</span> <span class="n">options</span><span class="p">)</span> <span class="p">}</span>
+</span><span class='line'>      <span class="k">else</span>
+</span><span class='line'>          <span class="n">serialize</span><span class="p">(</span><span class="n">serialized_object</span><span class="p">,</span> <span class="n">options</span><span class="p">)</span>
+</span><span class='line'>      <span class="k">end</span>
+</span><span class='line'>  <span class="k">end</span>
+</span><span class='line'>
+</span><span class='line'>  <span class="k">def</span> <span class="nf">serialize</span><span class="p">(</span><span class="n">object</span><span class="p">,</span> <span class="n">options</span><span class="o">=</span><span class="p">{})</span>
+</span><span class='line'>      <span class="n">object</span><span class="o">.</span><span class="n">as_json</span><span class="p">({</span><span class="ss">:only</span> <span class="o">=&gt;</span> <span class="n">attributes</span><span class="p">,</span> <span class="ss">:methods</span> <span class="o">=&gt;</span> <span class="nb">methods</span><span class="p">,</span> <span class="ss">:includes</span> <span class="o">=&gt;</span> <span class="n">includes</span><span class="p">}</span><span class="o">.</span><span class="n">merge</span><span class="p">(</span><span class="n">options</span><span class="p">))</span>
+</span><span class='line'>  <span class="k">end</span>
+</span><span class='line'><span class="k">end</span>
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p>The above code detects if it is serializing an individual model or a collection by testing if the <code>serialized_object</code> responds to <code>to_ary</code> (ie whether or not it can be coerced into an array). If it is a collection, it returns an array generated by serializing every element in the collection.</p>
+
+<h2>Conclusion</h2>
+
+<p>That&#8217;s pretty much the entire solution. If you want to take a peak at the fully fleshed out <code>BaseSerializer</code> and <code>CommentSerializer</code> classes check out <a href="https://gist.github.com/matthewrobertson/6129035">this gist</a>. As always, I am interested to hear any opinions / suggestions you might have.</p>
+]]></content>
+  </entry>
   
   <entry>
     <title type="html"><![CDATA[Introducing RESS]]></title>
@@ -102,6 +395,7 @@
 <h3>References</h3>
 
 <ul>
+<li><a href="https://github.com/matthewrobertson/ress">The RESS gem github repository</a></li>
 <li><a href="http://www.html5rocks.com/en/mobile/cross-device/">devicejs</a> <a href="https://github.com/borismus/device.js">github</a></li>
 <li><a href="https://developers.google.com/webmasters/smartphone-sites/details">Building Smartphone-Optimized Websites</a></li>
 <li><a href="http://www.lukew.com/ff/entry.asp?1392">RESS: Responsive Design + Server Side Components</a></li>

@@ -4,7 +4,7 @@
   <title><![CDATA[Category: Mobile | Matthew Robertson]]></title>
   <link href="http://matthewrobertson.org/blog/categories/mobile/atom.xml" rel="self"/>
   <link href="http://matthewrobertson.org/"/>
-  <updated>2013-02-20T12:37:53-08:00</updated>
+  <updated>2013-08-06T22:38:43-07:00</updated>
   <id>http://matthewrobertson.org/</id>
   <author>
     <name><![CDATA[Matthew Robertson]]></name>
@@ -94,6 +94,7 @@ These annotations conform to SEO best practices for mobile optimized websites <a
 <h3>References</h3>
 
 <ul>
+<li><a href="https://github.com/matthewrobertson/ress">The RESS gem github repository</a></li>
 <li><a href="http://www.html5rocks.com/en/mobile/cross-device/">devicejs</a> <a href="https://github.com/borismus/device.js">github</a></li>
 <li><a href="https://developers.google.com/webmasters/smartphone-sites/details">Building Smartphone-Optimized Websites</a></li>
 <li><a href="http://www.lukew.com/ff/entry.asp?1392">RESS: Responsive Design + Server Side Components</a></li>

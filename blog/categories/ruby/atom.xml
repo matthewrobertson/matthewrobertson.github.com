@@ -4,7 +4,7 @@
   <title><![CDATA[Category: Ruby | Matthew Robertson]]></title>
   <link href="http://matthewrobertson.org/blog/categories/ruby/atom.xml" rel="self"/>
   <link href="http://matthewrobertson.org/"/>
-  <updated>2013-02-20T12:37:53-08:00</updated>
+  <updated>2013-08-06T22:38:43-07:00</updated>
   <id>http://matthewrobertson.org/</id>
   <author>
     <name><![CDATA[Matthew Robertson]]></name>
@@ -12,6 +12,216 @@
   </author>
   <generator uri="http://octopress.org/">Octopress</generator>
 
+  
+  <entry>
+    <title type="html"><![CDATA[ActiveRecord Serializers From Scratch]]></title>
+    <link href="http://matthewrobertson.org/blog/2013/07/26/active-record-serializers-from-scratch/"/>
+    <updated>2013-07-26T11:38:00-07:00</updated>
+    <id>http://matthewrobertson.org/blog/2013/07/26/active-record-serializers-from-scratch</id>
+    <content type="html"><![CDATA[<p>In this post I am going to go over how you can roll your own JSON serialization solution to use in a rails app in less than 40 lines of code. The idea makes use of basic object oriented techniques (inheritance and hook methods) to leverage the serialization functionality provided by Rails out of the box.<!-- more --> If you are not interested in the step by step explanation, you can skip to <a href="https://gist.github.com/matthewrobertson/6129035">this gist</a> I created with the fully fleshed out base class and a sample serializer subclass.</p>
+
+<h2>The Why</h2>
+
+<p>The Medeo app passes data between the backend Rails code and client side Javascript as JSON objects in three ways: via AJAX requests, through websockets and in rendered html pages via <code>data</code> attributes. This often means reusing serialization code in different parts of the app in different contexts. For this reason none of the popular template based JSON DSLs (eg <a href="https://github.com/nesquena/rabl">RABL</a>, <a href="https://github.com/rails/jbuilder">jBuilder</a>) really fit our use case. The <a href="https://github.com/rails-api/active_model_serializers"><code>ActiveModel::Serializers</code> gem</a> was much closer to what we wanted but I was put off by its complexity. Eventually we ended up rolling our own simple, elegant solution that is serving us nicely.</p>
+
+<h2>An Example</h2>
+
+<p>To explain how we came up with this solution and how it works lets start with a simple example: a blog application that allows commenting. Comments are written by users so the app may have some <code>ActiveRecord</code> models that look something like this:</p>
+
+<p>```ruby
+class Comment &lt; ActiveRecord::Base</p>
+
+<pre><code>attr_accessible :body
+belongs_to :user
+
+def html_body
+    "&lt;p&gt;#{body}&lt;/p&gt;"
+end
+</code></pre>
+
+<p>end</p>
+
+<p>class User &lt; ActiveRecord::Base</p>
+
+<pre><code>attr_accessible :name
+has_many :comments
+</code></pre>
+
+<p>end
+```</p>
+
+<h2>The Basic Idea</h2>
+
+<p>In order to create comments using AJAX and render our UI on the client side we need to return a JSON response that is composed of the comment's attributes as well as its user's attributes. This can be done easily using the <code>as_json</code> method provided by Rails' <code>Serialization</code> module. If you take a look at the <a href="http://api.rubyonrails.org/classes/ActiveModel/Serializers/JSON.html">documenation</a>, you will see that it accepts an optional hash that can be used to shape the format of the returned JSON. The specific options that we care about are the following:</p>
+
+<ul>
+<li><code>:only</code> to limit the attributes included in the json</li>
+<li><code>:methods</code> to include the result of some method calls on the model</li>
+<li><code>:include</code> to include associations</li>
+</ul>
+
+
+<p>Using these options, we can get the JSON we want as follows:</p>
+
+<p>```ruby</p>
+
+<blockquote><blockquote><blockquote><p>@comment.as_json :only => %w(id created_at), :methods => %w(html_body), :includes => { 'user' => { 'only' => %w(id name) } }
+=> {</p>
+
+<pre><code>"id"=&gt;1,
+"html_body"=&gt;"lorem ipsum dolor...",
+"created_at"=&gt;"2013-07-26T10:38:47-07:00",
+"user"=&gt;{
+    "id"=&gt;1,
+    "name"=&gt;"Matthew"
+}
+</code></pre>
+
+<p>}
+```</p></blockquote></blockquote></blockquote>
+
+<p>This is the result we wanted but it is still not quite and ideal solution. The <code>as_json</code> method call is definitely a bit hairy.If we wanted to reuse this serialization code would have copy all of the arguments we passed to <code>as_json</code> around the code base. This would be a nightmare if we ever needed to change things. The natural way to clean this up is to create a class to encapsulate the responsibility of the serializing comments:</p>
+
+<p>```ruby
+class CommentSerializer</p>
+
+<pre><code>attr_reader :comment
+
+def initialize(comment)
+    @comment = comment
+end
+
+def as_json(options={})
+    comment.as_json(:only =&gt; attributes, :methods =&gt; methods, :includes =&gt; includes).merge(options)
+end
+
+private
+
+    def attributes
+        %w(id created_at)
+    end
+
+    def includes
+        { 'user' =&gt; { 'only' =&gt; %w(id name) } }
+    end
+
+    def methods
+        %w(html_body)
+    end
+</code></pre>
+
+<p>end
+```</p>
+
+<p>Now we can serialize comments by creating an instance of our serializer class: <code>CommentSerializer.new(@comment).as_json</code>. This has the added benefit of enabling us to easily test our serialization code in isolation. I personally think testing this type of serialization code is extremely important as it enforces the interface that connects your rails app to your javascript code.</p>
+
+<h2>A Reusable Pattern</h2>
+
+<p>Eventually we are going to want to serialize some models other than comments and it would be nice to reuse this pattern in these instances. One way to do this is to move the generic serialization bits into an abstract base class:</p>
+
+<p>```ruby
+class BaseSerializer</p>
+
+<pre><code>attr_reader :serialized_object
+
+def initialize(serialized_object)
+    @serialized_object = serialized_object
+end
+
+def as_json(options={})
+    serialized_object.as_json(:only =&gt; attributes, :methods =&gt; methods, :includes =&gt; includes).merge(options)
+end
+
+private
+
+    def attributes ; end
+    def includes   ; end
+    def methods    ; end
+</code></pre>
+
+<p>end
+```</p>
+
+<p>Now we can create serializers by simply inheriting from the <code>BaseSerializer</code> class and overriding the <code>attribute</code>, <code>includes</code> and <code>methods</code> hook methods. Making use of this base class, our <code>CommentSerializer</code> ends up looking something like this:</p>
+
+<p>```ruby
+class CommentSerializer &lt; BaseSerializer</p>
+
+<pre><code>private
+
+    def attributes
+        %w(id created_at)
+    end
+
+    def includes
+        { 'user' =&gt; { 'only' =&gt; %w(id name) } }
+    end
+
+    def methods
+        %w(html_body)
+    end
+</code></pre>
+
+<p>end
+```</p>
+
+<h1>More Complex JSON Attributes</h1>
+
+<p>So far our solution is confined only to attributes, methods and associations defined inside of the class we are serializing. Obviously it would be nice if we could lift this constraint in order to create more complex JSON without packing our model full of methods that don't belong in it. One requirement that I come up against often is to include resource URLs in JSON responses. To do this we can simply include the Rails URL helpers in our base class, and then use them to augment the return value of a call to <code>super</code> from our derived class:</p>
+
+<p>```ruby
+class BaseSerializer</p>
+
+<pre><code>include Rails.application.routes.url_helpers
+# everything the same...
+</code></pre>
+
+<p>end</p>
+
+<p>class CommentSerializer &lt; BaseSerializer</p>
+
+<pre><code># everything the same...
+
+def as_json(options={})
+    super(options).tap do |c|
+        c['link'] = user_path(serialized_object)
+    end
+end
+</code></pre>
+
+<p>end
+```</p>
+
+<p>If you were paying close attention, you may notice that the above changes actually broke something. Before it provided its own <code>as_json</code> method, our <code>CommentSerializer</code> was capable of serializing both individual comments as well as collections of comments. This is because Rails provides an implementation of <code>as_json</code> for both <code>Array</code>s and <code>ActiveRecord::Relation</code>s that essentially map a collection by calling <code>as_json</code> on each of its members. We can do the same the same thing, by adding a layer of indirection in our <code>as_json</code> method and creating another method that serializes individual instances:</p>
+
+<p>```ruby
+class BaseSerializer</p>
+
+<pre><code># everything the same...
+
+def as_json(options={})
+    if serialized_object.respond_to?(:to_ary)
+        serialized_object.map { |object| serialize(object, options) }
+    else
+        serialize(serialized_object, options)
+    end
+end
+
+def serialize(object, options={})
+    object.as_json({:only =&gt; attributes, :methods =&gt; methods, :includes =&gt; includes}.merge(options))
+end
+</code></pre>
+
+<p>end
+```</p>
+
+<p>The above code detects if it is serializing an individual model or a collection by testing if the <code>serialized_object</code> responds to <code>to_ary</code> (ie whether or not it can be coerced into an array). If it is a collection, it returns an array generated by serializing every element in the collection.</p>
+
+<h2>Conclusion</h2>
+
+<p>That's pretty much the entire solution. If you want to take a peak at the fully fleshed out <code>BaseSerializer</code> and <code>CommentSerializer</code> classes check out <a href="https://gist.github.com/matthewrobertson/6129035">this gist</a>. As always, I am interested to hear any opinions / suggestions you might have.</p>
+]]></content>
+  </entry>
   
   <entry>
     <title type="html"><![CDATA[Introducing RESS]]></title>
@@ -94,6 +304,7 @@ These annotations conform to SEO best practices for mobile optimized websites <a
 <h3>References</h3>
 
 <ul>
+<li><a href="https://github.com/matthewrobertson/ress">The RESS gem github repository</a></li>
 <li><a href="http://www.html5rocks.com/en/mobile/cross-device/">devicejs</a> <a href="https://github.com/borismus/device.js">github</a></li>
 <li><a href="https://developers.google.com/webmasters/smartphone-sites/details">Building Smartphone-Optimized Websites</a></li>
 <li><a href="http://www.lukew.com/ff/entry.asp?1392">RESS: Responsive Design + Server Side Components</a></li>
