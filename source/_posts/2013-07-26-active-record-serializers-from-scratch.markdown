@@ -6,7 +6,7 @@ comments: true
 categories: [Rails, Ruby, ActiveRecord]
 ---
 
-In this post I am going to go over how you can roll your own JSON serialization solution to use in a rails app in less than 40 lines of code. The idea makes use of basic object oriented techniques (inheritance and hook methods) to leverage the serialization functionality provided by Rails out of the box.<!-- more --> If you are not interested in the step by step explanation, you can skip to [this gist](https://gist.github.com/matthewrobertson/6129035) I created with the fully fleshed out base class and a sample serializer subclass.
+In this post I am going to go over how you can roll your own JSON serialization solution to use in a Rails app in less than 40 lines of code. The idea makes use of basic object oriented techniques (inheritance and hook methods) to leverage the serialization functionality provided by Rails out of the box.<!-- more --> If you are not interested in the step by step explanation, you can skip to [this gist](https://gist.github.com/matthewrobertson/6129035) I created with the fully fleshed out base class and a sample serializer subclass.
 
 ## The Why
 
