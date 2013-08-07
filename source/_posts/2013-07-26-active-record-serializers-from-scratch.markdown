@@ -1,7 +1,7 @@
 ---
 layout: post
 title: "ActiveRecord Serializers From Scratch"
-date: 2013-07-26 11:38
+date: 2013-08-06 11:38
 comments: true
 categories: [Rails, Ruby, ActiveRecord]
 ---
@@ -132,7 +132,7 @@ class CommentSerializer < BaseSerializer
 end
 ```
 
-# More Complex JSON Attributes
+## More Complex JSON Attributes
 
 So far our solution is confined only to attributes, methods and associations defined inside of the class we are serializing. Obviously it would be nice if we could lift this constraint in order to create more complex JSON without packing our model full of methods that don't belong in it. One requirement that I come up against often is to include resource URLs in JSON responses. To do this we can simply include the Rails URL helpers in our base class, and then use them to augment the return value of a call to `super` from our derived class:
 
