@@ -6,13 +6,13 @@ comments: true
 categories: [Rails, Ruby, ActiveRecord]
 ---
 
-The Medeo app passes data between the backend Rails code and client side Javascript as JSON objects in three common ways:
+In this post I am going to go over how you can roll your own JSON serialization solution to use in a rails app in less than 40 lines of code. The idea makes use of basic object oriented techniques (inheritance and hook methods) to leverage the serialization functionality provided by Rails out of the box.<!-- more --> If you are not interested in the step by step explanation, you can skip to [this gist](https://gist.github.com/matthewrobertson/6129035) I created with the fully fleshed out base class and a sample serializer subclass.
 
-1. via AJAX requests
-2. through websockets
-3. in rendered html pages via `data` attributes
+## The Why
 
-This often meant reusing serialization code in different parts of the app in different contexts. For this reason none of the popular template based JSON DSLs ([RABL](https://github.com/nesquena/rabl), [jBuilder](https://github.com/rails/jbuilder)) really fit our use case. The [`ActiveModel::Serializers` gem](https://github.com/rails-api/active_model_serializers) was much closer to what we wanted but I was put off by its complexity and "magic". Eventually we ended up rolling our own simple, elegant solution that is serving us nicely.
+The Medeo app passes data between the backend Rails code and client side Javascript as JSON objects in three ways: via AJAX requests, through websockets and in rendered html pages via `data` attributes. This often means reusing serialization code in different parts of the app in different contexts. For this reason none of the popular template based JSON DSLs (eg [RABL](https://github.com/nesquena/rabl), [jBuilder](https://github.com/rails/jbuilder)) really fit our use case. The [`ActiveModel::Serializers` gem](https://github.com/rails-api/active_model_serializers) was much closer to what we wanted but I was put off by its complexity. Eventually we ended up rolling our own simple, elegant solution that is serving us nicely.
+
+## An Example
 
 To explain how we came up with this solution and how it works lets start with a simple example: a blog application that allows commenting. Comments are written by users so the app may have some `ActiveRecord` models that look something like this:
 
@@ -31,6 +31,8 @@ class User < ActiveRecord::Base
 	has_many :comments
 end
 ```
+
+## The Basic Idea
 
 In order to create comments using AJAX and render our UI on the client side we need to return a JSON response that is composed of the comment's attributes as well as its user's attributes. This can be done easily using the `as_json` method provided by Rails' `Serialization` module. If you take a look at the [documenation](http://api.rubyonrails.org/classes/ActiveModel/Serializers/JSON.html), you will see that it accepts an optional hash that can be used to shape the format of the returned JSON. The specific options that we care about are the following:
 
@@ -53,7 +55,7 @@ Using these options, we can get the JSON we want as follows:
 }
 ```
 
-This is the result we wanted but it is still not quite and ideal solution. The `as_json` method call is definitely a bit hairy. Reusing our serialization code would involve copying all of its arguments around, which would be a nightmare if we ever needed to change things. The natural way to clean this up is to create a class to encapsulate the responsibility of the serializing comments:
+This is the result we wanted but it is still not quite and ideal solution. The `as_json` method call is definitely a bit hairy.If we wanted to reuse this serialization code would have copy all of the arguments we passed to `as_json` around the code base. This would be a nightmare if we ever needed to change things. The natural way to clean this up is to create a class to encapsulate the responsibility of the serializing comments:
 
 ```ruby
 class CommentSerializer
@@ -83,7 +85,9 @@ class CommentSerializer
 end
 ```
 
-Now we can serialize comments by instantiating an instance of our serializer class: `CommentSerializer.new(@comment).as_json`. This has the added benefit of enabling us to test our easily test our serialization code in isolation. I personally think testing this type of serialization code is extremely important as it enforces the interface that connects your rails app to your javascript code.
+Now we can serialize comments by creating an instance of our serializer class: `CommentSerializer.new(@comment).as_json`. This has the added benefit of enabling us to easily test our serialization code in isolation. I personally think testing this type of serialization code is extremely important as it enforces the interface that connects your rails app to your javascript code.
+
+## A Reusable Pattern
 
 Eventually we are going to want to serialize some models other than comments and it would be nice to reuse this pattern in these instances. One way to do this is to move the generic serialization bits into an abstract base class:
 
@@ -128,7 +132,9 @@ class CommentSerializer < BaseSerializer
 end
 ```
 
-So far our solution is confined only to attributes, methods and associations defined inside of the class we are serializing. Obviously it would be nice if we could lift this constraint in order to create more complex JSON without packing our model full of methods that don't belong in it. One requirement that I come up against often when building applications is to return resource URLs in JSON responses. To do this we can simply include the Rails URL helpers in our base class, and then use them to augment the return value of a call to `super` from our derived class:
+# More Complex JSON Attributes
+
+So far our solution is confined only to attributes, methods and associations defined inside of the class we are serializing. Obviously it would be nice if we could lift this constraint in order to create more complex JSON without packing our model full of methods that don't belong in it. One requirement that I come up against often is to include resource URLs in JSON responses. To do this we can simply include the Rails URL helpers in our base class, and then use them to augment the return value of a call to `super` from our derived class:
 
 ```ruby
 class BaseSerializer
@@ -147,7 +153,7 @@ class CommentSerializer < BaseSerializer
 end
 ```
 
-If you were paying close attention, you may notice that the above changes actually broke something. Before it provided its own `as_json` method, our `CommentSerializer` was capable of serializing both individual comments as well as collections of comments. This is because Rails provides an implementation of `as_json` for both `Array`s and `ActiveRecord::Relation`s that essentially map the collections by calling `as_json` on every object in the collection. We can do the same the same thing, by adding a layer of indirection in our `as_json` method and creating another method for individual instances:
+If you were paying close attention, you may notice that the above changes actually broke something. Before it provided its own `as_json` method, our `CommentSerializer` was capable of serializing both individual comments as well as collections of comments. This is because Rails provides an implementation of `as_json` for both `Array`s and `ActiveRecord::Relation`s that essentially map a collection by calling `as_json` on each of its members. We can do the same the same thing, by adding a layer of indirection in our `as_json` method and creating another method that serializes individual instances:
 
 
 ```ruby
@@ -170,4 +176,6 @@ end
 
 The above code detects if it is serializing an individual model or a collection by testing if the `serialized_object` responds to `to_ary` (ie whether or not it can be coerced into an array). If it is a collection, it returns an array generated by serializing every element in the collection.
 
-That's the entire solution. I think its quite powerful. I have created [a gist](https://gist.github.com/matthewrobertson/6129035) with the full code for the `BaseSerializer` and the `CommentSerializer`. As always, I am interested to hear any opinions / suggestions you might have.
+## Conclusion
+
+That's pretty much the entire solution. If you want to take a peak at the fully fleshed out `BaseSerializer` and `CommentSerializer` classes check out [this gist](https://gist.github.com/matthewrobertson/6129035). As always, I am interested to hear any opinions / suggestions you might have.
