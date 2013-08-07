@@ -43,7 +43,7 @@ In order to create comments using AJAX and render our UI on the client side we n
 Using these options, we can get the JSON we want as follows:
 
 ```ruby
->>> @comment.as_json :only => %w(id created_at), :methods => %w(html_body), :includes => { 'user' => { 'only' => %w(id name) } }
+>>> @comment.as_json :only => %w(id created_at), :methods => %w(html_body), :include => { 'user' => { 'only' => %w(id name) } }
 => {
 	"id"=>1,
 	"html_body"=>"lorem ipsum dolor...",
@@ -66,7 +66,7 @@ class CommentSerializer
 	end
 
 	def as_json(options={})
-		comment.as_json(:only => attributes, :methods => methods, :includes => includes).merge(options)
+		comment.as_json(:only => attributes, :methods => methods, :include => include).merge(options)
 	end
 
 	private
@@ -75,7 +75,7 @@ class CommentSerializer
 			%w(id created_at)
 		end
 
-		def includes
+		def include
 			{ 'user' => { 'only' => %w(id name) } }
 		end
 
@@ -100,7 +100,7 @@ class BaseSerializer
 	end
 
 	def as_json(options={})
-		serialized_object.as_json(:only => attributes, :methods => methods, :includes => includes).merge(options)
+		serialized_object.as_json(:only => attributes, :methods => methods, :include => includes).merge(options)
 	end
 
 	private
@@ -147,7 +147,7 @@ class CommentSerializer < BaseSerializer
 
 	def as_json(options={})
 		super(options).tap do |c|
-			c['link'] = user_path(serialized_object)
+			c['link'] = comment_path(serialized_object)
 		end
 	end
 end
@@ -169,7 +169,7 @@ class BaseSerializer
 	end
 
 	def serialize(object, options={})
-		object.as_json({:only => attributes, :methods => methods, :includes => includes}.merge(options))
+		object.as_json({:only => attributes, :methods => methods, :include => includes}.merge(options))
 	end
 end
 ```
