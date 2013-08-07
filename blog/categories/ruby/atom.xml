@@ -4,7 +4,7 @@
   <title><![CDATA[Category: Ruby | Matthew Robertson]]></title>
   <link href="http://matthewrobertson.org/blog/categories/ruby/atom.xml" rel="self"/>
   <link href="http://matthewrobertson.org/"/>
-  <updated>2013-08-06T22:49:49-07:00</updated>
+  <updated>2013-08-06T23:14:46-07:00</updated>
   <id>http://matthewrobertson.org/</id>
   <author>
     <name><![CDATA[Matthew Robertson]]></name>
@@ -65,7 +65,7 @@ has_many :comments
 
 <p>```ruby</p>
 
-<blockquote><blockquote><blockquote><p>@comment.as_json :only => %w(id created_at), :methods => %w(html_body), :includes => { 'user' => { 'only' => %w(id name) } }
+<blockquote><blockquote><blockquote><p>@comment.as_json :only => %w(id created_at), :methods => %w(html_body), :include => { 'user' => { 'only' => %w(id name) } }
 => {</p>
 
 <pre><code>"id"=&gt;1,
@@ -92,7 +92,7 @@ def initialize(comment)
 end
 
 def as_json(options={})
-    comment.as_json(:only =&gt; attributes, :methods =&gt; methods, :includes =&gt; includes).merge(options)
+    comment.as_json(:only =&gt; attributes, :methods =&gt; methods, :include =&gt; include).merge(options)
 end
 
 private
@@ -101,7 +101,7 @@ private
         %w(id created_at)
     end
 
-    def includes
+    def include
         { 'user' =&gt; { 'only' =&gt; %w(id name) } }
     end
 
@@ -129,7 +129,7 @@ def initialize(serialized_object)
 end
 
 def as_json(options={})
-    serialized_object.as_json(:only =&gt; attributes, :methods =&gt; methods, :includes =&gt; includes).merge(options)
+    serialized_object.as_json(:only =&gt; attributes, :methods =&gt; methods, :include =&gt; includes).merge(options)
 end
 
 private
@@ -184,7 +184,7 @@ class BaseSerializer</p>
 
 def as_json(options={})
     super(options).tap do |c|
-        c['link'] = user_path(serialized_object)
+        c['link'] = comment_path(serialized_object)
     end
 end
 </code></pre>
@@ -208,7 +208,7 @@ def as_json(options={})
 end
 
 def serialize(object, options={})
-    object.as_json({:only =&gt; attributes, :methods =&gt; methods, :includes =&gt; includes}.merge(options))
+    object.as_json({:only =&gt; attributes, :methods =&gt; methods, :include =&gt; includes}.merge(options))
 end
 </code></pre>
 
