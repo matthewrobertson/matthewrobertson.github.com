@@ -17,7 +17,7 @@
 
 	<link href="/atom.xml" rel="alternate" title="Matthew Robertson" type="application/atom+xml">
 	
-	<link rel="canonical" href="http://matthewrobertson.org/blog/2013/07/26/active-record-serializers-from-scratch/">
+	<link rel="canonical" href="http://matthewrobertson.org/blog/2013/08/06/active-record-serializers-from-scratch/">
 	<link href="/favicon.png" rel="shortcut icon">
 	<link href="/stylesheets/screen.css" media="screen, projection" rel="stylesheet" type="text/css">
 	<!--[if lt IE 9]><script src="//html5shiv.googlecode.com/svn/trunk/html5.js"></script><![endif]-->
@@ -294,7 +294,7 @@
 </span></code></pre></td></tr></table></div></figure>
 
 
-<h1>More Complex JSON Attributes</h1>
+<h2>More Complex JSON Attributes</h2>
 
 <p>So far our solution is confined only to attributes, methods and associations defined inside of the class we are serializing. Obviously it would be nice if we could lift this constraint in order to create more complex JSON without packing our model full of methods that don&#8217;t belong in it. One requirement that I come up against often is to include resource URLs in JSON responses. To do this we can simply include the Rails URL helpers in our base class, and then use them to augment the return value of a call to <code>super</code> from our derived class:</p>
 
@@ -418,8 +418,8 @@ Design credit: <a href="http://shashankmehta.in/archive/2012/greyshade.html">Sha
       
         
         // var disqus_developer = 1;
-        var disqus_identifier = 'http://matthewrobertson.org/blog/2013/07/26/active-record-serializers-from-scratch/';
-        var disqus_url = 'http://matthewrobertson.org/blog/2013/07/26/active-record-serializers-from-scratch/';
+        var disqus_identifier = 'http://matthewrobertson.org/blog/2013/08/06/active-record-serializers-from-scratch/';
+        var disqus_url = 'http://matthewrobertson.org/blog/2013/08/06/active-record-serializers-from-scratch/';
         var disqus_script = 'embed.js';
       
     (function () {
